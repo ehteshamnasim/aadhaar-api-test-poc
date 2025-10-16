@@ -123,5 +123,4 @@ paths:
         '400':
           description: Invalid Aadhaar number
         '429':
-          description: Rate limit exceeded
-# Test change
+          description: Rate limit exceeded.
