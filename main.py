@@ -394,18 +394,46 @@ Endpoints:
         print(f"   ✓ {self.unique_test_count} tests")
     
     def run_tests_with_detailed_capture(self):
-        """CRITICAL FIX: Run tests and capture results properly"""
+        """ENHANCED: Run tests with proper error handling and detailed capture"""
         print("\n🧪 Running tests...")
         
-        # Initialize counts
+        # Initialize
         self.passed_tests = 0
         self.failed_tests = 0
         self.test_details = []
         
+        # First, verify API is accessible
+        print("   Checking API availability...")
+        api_available = self._check_api_health()
+        
+        if not api_available:
+            print("   ⚠️  API not accessible - tests will fail")
+            # Create failure details for all tests
+            for i in range(self.unique_test_count):
+                self.test_details.append({
+                    'name': f'test_{i+1}',
+                    'passed': False,
+                    'reason': 'API not running or not accessible on expected port'
+                })
+            
+            self.failed_tests = self.unique_test_count
+            
+            send_event('execute', {
+                'passed': 0,
+                'failed': self.unique_test_count,
+                'total': self.unique_test_count,
+                'details': self.test_details
+            })
+            
+            print(f"   ❌ 0/{self.unique_test_count} passed (API not available)")
+            return
+        
+        print("   ✅ API accessible, running tests...")
+        
         try:
-            # Run pytest with verbose output
+            # Run pytest with detailed output
             result = subprocess.run(
-                ['pytest', self.test_file_path, '-v', '--tb=line', '--no-header'],
+                ['pytest', self.test_file_path, '-v', '--tb=short', '-s'],
                 capture_output=True,
                 text=True,
                 timeout=60,
@@ -414,66 +442,22 @@ Endpoints:
             
             output = result.stdout + '\n' + result.stderr
             
-            # FIXED: Better parsing logic
-            lines = output.split('\n')
+            print("\n   📝 Pytest output preview:")
+            print("   " + "-" * 60)
+            for line in output.split('\n')[:10]:
+                if line.strip():
+                    print(f"   {line[:80]}")
+            print("   " + "-" * 60 + "\n")
             
-            for line in lines:
-                # Match pytest output format: test_file.py::test_name PASSED/FAILED
-                if '::test_' in line and (' PASSED' in line or ' FAILED' in line):
-                    try:
-                        # Extract test name
-                        parts = line.split('::')
-                        if len(parts) >= 2:
-                            test_part = parts[1]
-                            test_name = test_part.split(' ')[0]
-                            
-                            is_passed = ' PASSED' in line
-                            
-                            if is_passed:
-                                self.passed_tests += 1
-                                reason = "All assertions passed, response matched expectations"
-                            else:
-                                self.failed_tests += 1
-                                # Extract failure reason from next lines
-                                reason = "Test assertion failed"
-                                # Look for assert or error in nearby lines
-                                line_idx = lines.index(line)
-                                for i in range(line_idx + 1, min(line_idx + 10, len(lines))):
-                                    if 'AssertionError' in lines[i] or 'assert' in lines[i].lower():
-                                        reason = lines[i].strip()[:100]
-                                        break
-                            
-                            self.test_details.append({
-                                'name': test_name,
-                                'passed': is_passed,
-                                'reason': reason
-                            })
-                    
-                    except Exception as e:
-                        print(f"   ⚠️  Parse error: {e}")
-                        continue
+            # Parse output - IMPROVED LOGIC
+            self._parse_pytest_output(output)
             
-            # Fallback: If parsing failed, count from output
-            if self.passed_tests == 0 and self.failed_tests == 0:
-                self.passed_tests = output.count(' PASSED')
-                self.failed_tests = output.count(' FAILED')
-                
-                # Generate generic details
-                for i in range(self.unique_test_count):
-                    if i < self.passed_tests:
-                        self.test_details.append({
-                            'name': f'test_case_{i+1}',
-                            'passed': True,
-                            'reason': 'Test passed'
-                        })
-                    else:
-                        self.test_details.append({
-                            'name': f'test_case_{i+1}',
-                            'passed': False,
-                            'reason': 'Test failed - see output'
-                        })
+            # Verify we got results
+            if self.passed_tests == 0 and self.failed_tests == 0 and self.unique_test_count > 0:
+                print("   ⚠️  Parsing failed, analyzing raw output...")
+                self._fallback_parse(output)
             
-            print(f"   {self.passed_tests}/{self.unique_test_count} passed")
+            print(f"   {self.passed_tests}/{self.unique_test_count} passed, {self.failed_tests} failed")
             
             # Send to dashboard
             send_event('execute', {
@@ -483,28 +467,182 @@ Endpoints:
                 'details': self.test_details
             })
             
-            # Print details
+            # Print summary
             if self.test_details:
-                print("\n   📋 Details:")
-                for detail in self.test_details[:3]:
+                print("\n   📋 Test Summary:")
+                for detail in self.test_details[:5]:
                     status = "✅" if detail['passed'] else "❌"
-                    print(f"      {status} {detail['name']}")
+                    print(f"      {status} {detail['name']}: {detail['reason'][:60]}")
+                if len(self.test_details) > 5:
+                    print(f"      ... and {len(self.test_details) - 5} more")
             
         except subprocess.TimeoutExpired:
-            print("   ⚠️  Timeout")
+            print("   ⚠️  Test execution timeout")
+            self._create_timeout_details()
+            
             send_event('execute', {
                 'passed': 0,
-                'failed': 0,
+                'failed': self.unique_test_count,
                 'total': self.unique_test_count,
-                'details': []
+                'details': self.test_details
             })
+            
         except Exception as e:
-            print(f"   ⚠️  Error: {e}")
+            print(f"   ❌ Test execution error: {e}")
+            self._create_error_details(str(e))
+            
             send_event('execute', {
                 'passed': 0,
-                'failed': 0,
+                'failed': self.unique_test_count,
                 'total': self.unique_test_count,
-                'details': []
+                'details': self.test_details
+            })
+
+    def _check_api_health(self):
+        """Check if API is running and accessible"""
+        try:
+            # Read base URL from spec
+            parser = OpenAPIParser(self.spec_path)
+            parsed = parser.to_dict()
+            base_url = parsed['base_url']
+            
+            # Try to connect
+            health_url = base_url.replace('/api/v1', '/health')
+            response = requests.get(health_url, timeout=2)
+            return response.status_code == 200
+        except:
+            # Try alternative health check
+            try:
+                response = requests.get('http://localhost:5001/health', timeout=2)
+                return response.status_code == 200
+            except:
+                return False
+
+    def _parse_pytest_output(self, output):
+        """Parse pytest output for test results"""
+        lines = output.split('\n')
+        
+        for i, line in enumerate(lines):
+            # Match: tests/test_file.py::test_name PASSED/FAILED
+            if '::test_' in line:
+                try:
+                    # Extract test name
+                    if '::' in line:
+                        parts = line.split('::')
+                        test_part = parts[1] if len(parts) > 1 else parts[0]
+                        
+                        # Get test name (before space or bracket)
+                        test_name = test_part.split()[0] if ' ' in test_part else test_part
+                        test_name = test_name.split('(')[0]  # Remove parameters
+                        
+                        is_passed = 'PASSED' in line
+                        is_failed = 'FAILED' in line
+                        
+                        if is_passed:
+                            self.passed_tests += 1
+                            reason = "All assertions passed, API responded as expected"
+                            
+                            self.test_details.append({
+                                'name': test_name,
+                                'passed': True,
+                                'reason': reason
+                            })
+                            
+                        elif is_failed:
+                            self.failed_tests += 1
+                            
+                            # Extract failure reason from following lines
+                            reason = "Test assertion failed"
+                            for j in range(i + 1, min(i + 15, len(lines))):
+                                check_line = lines[j]
+                                
+                                # Look for assertion errors
+                                if 'AssertionError' in check_line:
+                                    reason = check_line.strip()[:150]
+                                    break
+                                elif 'assert' in check_line.lower() and ('==' in check_line or '!=' in check_line):
+                                    reason = check_line.strip()[:150]
+                                    break
+                                elif 'ConnectionError' in check_line or 'ConnectionRefusedError' in check_line:
+                                    reason = "Cannot connect to API - check if API is running on correct port"
+                                    break
+                                elif 'TimeoutError' in check_line or 'timeout' in check_line.lower():
+                                    reason = "API request timeout - API may be slow or unresponsive"
+                                    break
+                                elif 'Error:' in check_line or 'ERROR' in check_line:
+                                    reason = check_line.strip()[:150]
+                                    break
+                            
+                            self.test_details.append({
+                                'name': test_name,
+                                'passed': False,
+                                'reason': reason
+                            })
+                
+                except Exception as e:
+                    print(f"   ⚠️  Parse error on line: {line[:50]}")
+                    continue
+
+    def _fallback_parse(self, output):
+        """Fallback parsing when standard parsing fails"""
+        print("   Using fallback parsing...")
+        
+        # Simple count
+        passed_count = output.count(' PASSED')
+        failed_count = output.count(' FAILED')
+        
+        if passed_count > 0 or failed_count > 0:
+            self.passed_tests = passed_count
+            self.failed_tests = failed_count
+            
+            # Generate details
+            self.test_details = []
+            
+            for i in range(passed_count):
+                self.test_details.append({
+                    'name': f'test_passed_{i+1}',
+                    'passed': True,
+                    'reason': 'Test passed'
+                })
+            
+            for i in range(failed_count):
+                # Try to find failure reason in output
+                reason = "Test failed"
+                if 'ConnectionRefusedError' in output or 'Connection refused' in output:
+                    reason = "Cannot connect to API on specified port"
+                elif 'AssertionError' in output:
+                    reason = "Assertion failed - response did not match expectation"
+                elif 'timeout' in output.lower():
+                    reason = "Request timeout"
+                
+                self.test_details.append({
+                    'name': f'test_failed_{i+1}',
+                    'passed': False,
+                    'reason': reason
+                })
+
+    def _create_timeout_details(self):
+        """Create details for timeout scenario"""
+        self.failed_tests = self.unique_test_count
+        self.test_details = []
+        
+        for i in range(self.unique_test_count):
+            self.test_details.append({
+                'name': f'test_{i+1}',
+                'passed': False,
+                'reason': 'Test execution timeout - tests took too long to complete'
+            })
+
+    def _create_error_details(self, error_msg):
+        """Create details for error scenario"""
+        self.failed_tests = self.unique_test_count
+        self.test_details = []
+        
+        for i in range(self.unique_test_count):
+            self.test_details.append({
+                'name': f'test_{i+1}',
+                'passed': False,
+                'reason': f'Test execution error: {error_msg[:100]}'
             })
     
     def run_contract_tests(self, parsed_spec: dict):
