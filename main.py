@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 AI-Powered API Test Automation
-Fixed: Coverage order, auto-refresh, loading states
+FIXED: Coverage calculation + Real-time UI updates
 """
 
 import os
@@ -27,9 +27,17 @@ DASHBOARD_URL = "http://localhost:8080"
 def send_event(event_type: str, data: dict):
     """Send event to dashboard"""
     try:
-        requests.post(f"{DASHBOARD_URL}/api/event", json={'type': event_type, **data}, timeout=2)
-    except:
-        pass
+        response = requests.post(
+            f"{DASHBOARD_URL}/api/event",
+            json={'type': event_type, **data},
+            timeout=2
+        )
+        if response.status_code == 200:
+            print(f"  ✓ Event sent: {event_type}")
+            return True
+    except Exception as e:
+        print(f"  ⚠️ Event failed: {e}")
+    return False
 
 
 class POCOrchestrator:
@@ -47,6 +55,9 @@ class POCOrchestrator:
         self.actual_coverage = 0
         
         Path(output_dir).mkdir(exist_ok=True)
+        
+        # Ensure API directory exists
+        Path('api').mkdir(exist_ok=True)
     
     def _calculate_spec_hash(self):
         try:
@@ -64,55 +75,64 @@ class POCOrchestrator:
             version += 1
     
     def run(self):
-        """Execute complete workflow - CORRECTED ORDER"""
+        """Execute complete workflow"""
         print("\n" + "="*70)
         print("🚀 AI API Test Automation")
         print(f"   Version: v{self.version}")
         print("="*70 + "\n")
         
+        # Send initial clear event
+        send_event('clear', {'message': 'Starting new POC run'})
+        time.sleep(0.5)
+        
         try:
             # Parse
-            print("📄 Parsing spec...")
+            self._update_status("📄 Parsing OpenAPI specification...")
             parsed_spec = self.parse_spec()
+            time.sleep(0.5)
             
             # Generate
-            print("\n🤖 Generating tests...")
+            self._update_status("🤖 Generating tests with AI...")
             test_code = self.generate_tests(parsed_spec)
+            time.sleep(0.5)
             
             # Validate
-            print("\n✓ Validating...")
+            self._update_status("✓ Validating generated code...")
             self.validate_code(test_code)
+            time.sleep(0.5)
             
             # Save
-            print("\n💾 Saving...")
+            self._update_status("💾 Saving test file...")
             self.save_test_file(test_code, parsed_spec)
+            time.sleep(0.5)
             
-            # Execute Tests FIRST
-            print("\n🧪 Executing tests...")
+            # Execute Tests
+            self._update_status("🧪 Executing tests...")
             self.run_tests()
+            time.sleep(0.5)
             
-            # Contract tests SECOND (validates spec conformance)
-            print("\n🔍 Contract testing...")
+            # Contract tests
+            self._update_status("🔍 Running contract tests...")
             self.run_contract_tests(parsed_spec)
+            time.sleep(0.5)
             
-            # Coverage LAST (measures overall test quality)
-            print("\n📊 Calculating coverage...")
+            # Coverage - CRITICAL FIX
+            self._update_status("📊 Calculating code coverage...")
             self.calculate_coverage()
-            
-            # Show why coverage is low if applicable
-            self.analyze_coverage()
+            time.sleep(0.5)
             
             # Comparison
-            print("\n📊 Generating comparison...")
+            self._update_status("📊 Generating comparison...")
             self.show_comparison()
+            time.sleep(0.5)
             
             # Git
-            print("\n📝 Git operations...")
+            self._update_status("📝 Git operations...")
             self.git_commit_and_push()
+            time.sleep(0.5)
             
-            # Send completion event for auto-refresh
-            self.send_completion()
-            
+            # Complete
+            self._update_status("✅ POC completed successfully!")
             self.print_summary()
             
         except Exception as e:
@@ -120,6 +140,11 @@ class POCOrchestrator:
             import traceback
             traceback.print_exc()
             send_event('error', {'message': str(e)})
+    
+    def _update_status(self, message: str):
+        """Update status in UI"""
+        print(f"\n{message}")
+        send_event('status', {'message': message})
     
     def parse_spec(self):
         parser = OpenAPIParser(self.spec_path)
@@ -145,7 +170,7 @@ class POCOrchestrator:
             'progress': 30,
             'count': 0,
             'status': 'in_progress',
-            'message': 'Generating...'
+            'message': 'AI generating tests...'
         })
         
         test_code = generator.generate_tests(parsed_spec)
@@ -165,7 +190,7 @@ class POCOrchestrator:
             'progress': 100,
             'count': self.unique_test_count,
             'status': 'success',
-            'message': f'{self.unique_test_count} tests generated'
+            'message': f'Generated {self.unique_test_count} tests successfully!'
         })
         
         return test_code
@@ -177,7 +202,7 @@ class POCOrchestrator:
             'syntax': result['results']['syntax'][0],
             'imports': result['results']['imports'][0],
             'overall': result['passed'],
-            'message': 'Passed' if result['passed'] else 'Failed'
+            'message': 'Validation passed' if result['passed'] else 'Validation failed'
         })
         
         if not result['passed']:
@@ -260,15 +285,11 @@ def check_api():
         print(f"   Saved: {filename} ({self.unique_test_count} tests)")
     
     def run_tests(self):
-        """Execute tests with detailed failure reasons"""
+        """Execute tests"""
         print(f"   Running: pytest {self.test_file_path}")
         
-        # Signal start to hide sections
-        send_event('tests_started', {'message': 'Tests executing...'})
-        
-        # Verify file exists
         if not os.path.exists(self.test_file_path):
-            print(f"   ❌ File not found: {self.test_file_path}")
+            print(f"   ❌ File not found")
             send_event('execute', {'passed': 0, 'failed': 0, 'total': self.unique_test_count, 'details': []})
             return
         
@@ -281,8 +302,7 @@ def check_api():
                 return
             print("   ✅ API accessible")
         except:
-            print("   ❌ API not running on port 5001")
-            print("   💡 Start: python3 api/dummy_aadhaar_api.py")
+            print("   ❌ API not running")
             send_event('execute', {'passed': 0, 'failed': self.unique_test_count, 'total': self.unique_test_count, 'details': []})
             return
         
@@ -312,7 +332,7 @@ def check_api():
                         
                         if passed:
                             self.passed_tests += 1
-                            reason = "✅ All assertions passed, response matched expectations"
+                            reason = "✅ Test passed"
                         else:
                             self.failed_tests += 1
                             reason = self._extract_failure_reason(lines, i)
@@ -325,15 +345,12 @@ def check_api():
                         
                         icon = "✅" if passed else "❌"
                         print(f"   {icon} {test_name}")
-                        if not passed:
-                            print(f"      Reason: {reason}")
                     
-                    except Exception as e:
+                    except:
                         pass
             
             print(f"\n   Results: {self.passed_tests} passed, {self.failed_tests} failed")
             
-            # Send to dashboard
             send_event('execute', {
                 'passed': self.passed_tests,
                 'failed': self.failed_tests,
@@ -341,44 +358,37 @@ def check_api():
                 'details': details
             })
             
-        except subprocess.TimeoutExpired:
-            print("   ❌ Timeout")
-            send_event('execute', {'passed': 0, 'failed': self.unique_test_count, 'total': self.unique_test_count, 'details': []})
         except Exception as e:
             print(f"   ❌ Error: {e}")
             send_event('execute', {'passed': 0, 'failed': self.unique_test_count, 'total': self.unique_test_count, 'details': []})
     
     def _extract_failure_reason(self, lines, start_index):
-        """Extract detailed failure reason"""
+        """Extract failure reason"""
         for i in range(start_index + 1, min(start_index + 20, len(lines))):
             line = lines[i]
             
-            if 'ConnectionError' in line or 'ConnectionRefusedError' in line:
-                return "❌ Cannot connect to API - verify API is running"
-            
-            if 'TimeoutError' in line or 'timeout' in line.lower():
-                return "❌ API request timeout - API not responding"
-            
+            if 'ConnectionError' in line:
+                return "❌ Cannot connect to API"
+            if 'TimeoutError' in line:
+                return "❌ API timeout"
             if 'AssertionError' in line:
                 for j in range(i, min(i + 5, len(lines))):
                     if 'assert' in lines[j].lower():
-                        return f"❌ {lines[j].strip()[:120]}"
+                        return f"❌ {lines[j].strip()[:100]}"
                 return "❌ Assertion failed"
-            
-            if 'status_code' in line.lower() and ('==' in line or '!=' in line):
-                return f"❌ Status code mismatch: {line.strip()[:120]}"
-            
-            if 'KeyError' in line:
-                return f"❌ Missing field in response: {line.strip()[:120]}"
-            
             if 'Error:' in line:
-                return f"❌ {line.strip()[:120]}"
+                return f"❌ {line.strip()[:100]}"
         
-        return "❌ Test failed - see logs"
+        return "❌ Test failed"
     
     def run_contract_tests(self, parsed_spec):
         """Contract testing"""
-        send_event('contract', {'total': self.endpoint_count, 'passed': 0, 'failed': 0, 'status': 'running'})
+        send_event('contract', {
+            'total': self.endpoint_count,
+            'passed': 0,
+            'failed': 0,
+            'status': 'running'
+        })
         
         try:
             tester = ContractTester(parsed_spec['base_url'])
@@ -397,87 +407,122 @@ def check_api():
             print(f"   Error: {e}")
     
     def calculate_coverage(self):
-        """Calculate coverage - FIXED VERSION"""
-        print("   Running coverage analysis...")
+        """Calculate coverage - COMPLETE FIX"""
+        print("   Analyzing code coverage...")
         
         try:
-            # Step 1: Run tests with coverage
-            print("      Running tests with coverage...")
+            # Get project root directory
+            project_root = os.path.dirname(os.path.abspath(__file__))
+            api_path = os.path.join(project_root, 'api')
+            
+            print(f"   Project root: {project_root}")
+            print(f"   API path: {api_path}")
+            print(f"   Test file: {self.test_file_path}")
+            
+            # Check if API directory exists
+            if not os.path.exists(api_path):
+                print(f"   ⚠️ API directory not found at: {api_path}")
+                print(f"   Creating API directory...")
+                os.makedirs(api_path, exist_ok=True)
+            
+            # List API files
+            if os.path.exists(api_path):
+                api_files = [f for f in os.listdir(api_path) if f.endswith('.py')]
+                print(f"   API files found: {api_files}")
+            
+            # Step 1: Clean old coverage data
+            coverage_file = os.path.join(project_root, '.coverage')
+            if os.path.exists(coverage_file):
+                os.remove(coverage_file)
+                print("   Cleaned old coverage data")
+            
+            # Step 2: Run coverage
+            print("   Running coverage analysis...")
+            
+            cmd = [
+                'coverage', 'run',
+                '--source=api',
+                '--omit=*/tests/*,*/venv/*',
+                '-m', 'pytest',
+                self.test_file_path,
+                '-v'
+            ]
+            
+            print(f"   Command: {' '.join(cmd)}")
+            
             result = subprocess.run(
-                ['coverage', 'run', '--source=api', '-m', 'pytest', self.test_file_path],
+                cmd,
                 capture_output=True,
                 text=True,
                 timeout=60,
-                cwd=os.path.dirname(os.path.abspath(__file__))
+                cwd=project_root
             )
             
             if result.returncode != 0:
-                print(f"      ⚠️ Coverage run had errors: {result.stderr[:100]}")
+                print(f"   ⚠️ Coverage run warnings:")
+                if result.stderr:
+                    print(f"   {result.stderr[:200]}")
+            else:
+                print("   ✅ Coverage data collected")
             
-            # Step 2: Generate text report
-            print("      Generating coverage report...")
-            result = subprocess.run(
-                ['coverage', 'report'],
+            # Step 3: Generate report
+            print("   Generating coverage report...")
+            
+            report_result = subprocess.run(
+                ['coverage', 'report', '-m'],
                 capture_output=True,
                 text=True,
-                cwd=os.path.dirname(os.path.abspath(__file__))
+                cwd=project_root
             )
             
-            print("      Coverage output:")
-            print(result.stdout)
+            print("\n   Coverage Report:")
+            print("   " + "="*60)
+            for line in report_result.stdout.split('\n'):
+                if line.strip():
+                    print(f"   {line}")
+            print("   " + "="*60)
             
-            # Step 3: Parse coverage percentage
+            # Step 4: Parse percentage
             coverage = 0
-            for line in result.stdout.split('\n'):
+            for line in report_result.stdout.split('\n'):
                 if 'TOTAL' in line:
                     parts = line.split()
                     try:
-                        # Coverage format: "TOTAL    123    45    63%"
                         coverage_str = parts[-1].rstrip('%')
                         coverage = int(float(coverage_str))
-                        print(f"      Parsed coverage: {coverage}%")
+                        print(f"\n   ✅ Parsed coverage: {coverage}%")
                     except Exception as e:
-                        print(f"      Parse error: {e}")
-                    break
+                        print(f"   ⚠️ Parse error: {e}")
             
-            # Step 4: Generate HTML report
-            print("      Generating HTML report...")
+            # Step 5: Generate HTML
+            print("   Generating HTML report...")
+            
             html_result = subprocess.run(
                 ['coverage', 'html', '-d', 'htmlcov'],
                 capture_output=True,
                 text=True,
-                cwd=os.path.dirname(os.path.abspath(__file__))
+                cwd=project_root
             )
             
-            if html_result.returncode == 0:
-                print("      ✅ HTML report generated: htmlcov/index.html")
-            else:
-                print(f"      ⚠️ HTML generation failed: {html_result.stderr}")
+            htmlcov_index = os.path.join(project_root, 'htmlcov', 'index.html')
             
-            # Step 5: Verify HTML file exists
-            htmlcov_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'htmlcov', 'index.html')
-            if os.path.exists(htmlcov_path):
-                print(f"      ✅ Coverage report exists: {htmlcov_path}")
+            if os.path.exists(htmlcov_index):
+                print(f"   ✅ HTML report: {htmlcov_index}")
             else:
-                print(f"      ⚠️ Coverage report not found at: {htmlcov_path}")
+                print(f"   ⚠️ HTML report not generated")
             
             self.actual_coverage = coverage
-            print(f"   Coverage: {coverage}%")
+            
+            print(f"\n   Final Coverage: {coverage}%")
             
             # Send to dashboard
             send_event('coverage', {'percentage': coverage})
             
-            # Analyze if low
-            if coverage > 0 and coverage < 85:
-                self.analyze_coverage_details(result.stdout)
+            # Wait to ensure event is processed
+            time.sleep(0.5)
             
-        except subprocess.TimeoutExpired:
-            print("   ❌ Coverage calculation timeout")
-            self.actual_coverage = 0
-            send_event('coverage', {'percentage': 0})
-        
-        except FileNotFoundError as e:
-            print(f"   ❌ Coverage tool not found: {e}")
+        except FileNotFoundError:
+            print("   ❌ Coverage not installed")
             print("   💡 Install: pip install coverage")
             self.actual_coverage = 0
             send_event('coverage', {'percentage': 0})
@@ -488,65 +533,6 @@ def check_api():
             traceback.print_exc()
             self.actual_coverage = 0
             send_event('coverage', {'percentage': 0})
-
-    def analyze_coverage_details(self, coverage_output):
-        """Analyze why coverage is low"""
-        print(f"\n   ⚠️  Coverage is {self.actual_coverage}% (target: ≥85%)")
-        print(f"   📋 Analysis:")
-        
-        lines = coverage_output.split('\n')
-        
-        for line in lines:
-            if '.py' in line and '%' in line:
-                parts = line.split()
-                if len(parts) >= 4:
-                    try:
-                        file = parts[0]
-                        statements = parts[1]
-                        missed = parts[2]
-                        coverage_pct = parts[3].rstrip('%')
-                        
-                        if 'api' in file:
-                            print(f"      • {file}: {coverage_pct}% ({missed} of {statements} lines missed)")
-                    except:
-                        pass
-        
-        print(f"\n   💡 To improve coverage:")
-        print(f"      1. Add tests for error responses (400, 403, 500)")
-        print(f"      2. Test edge cases (empty strings, null values)")
-        print(f"      3. Test all branches (if/else conditions)")
-        print(f"      4. Test error handlers and exceptions")
-    
-    def analyze_coverage(self):
-        """Analyze why coverage might be low"""
-        if self.actual_coverage >= 85:
-            print(f"   ✅ Coverage target met!")
-            return
-        
-        print(f"\n   ⚠️  Coverage is {self.actual_coverage}% (target: ≥85%)")
-        print(f"   📋 Possible reasons:")
-        
-        # Analyze coverage details
-        if hasattr(self, 'coverage_details'):
-            lines = self.coverage_details.split('\n')
-            
-            for line in lines:
-                if 'dummy_aadhaar_api' in line and '%' in line:
-                    parts = line.split()
-                    if len(parts) >= 4:
-                        file = parts[0]
-                        coverage_pct = parts[3].rstrip('%')
-                        missing = parts[-1] if 'Missing' in self.coverage_details else ''
-                        
-                        print(f"      • {file}: {coverage_pct}% covered")
-                        if missing and missing != file:
-                            print(f"        Missing lines: {missing[:50]}")
-        
-        print(f"\n   💡 To improve coverage:")
-        print(f"      1. Add tests for error cases (400, 403, 500)")
-        print(f"      2. Test edge cases (empty fields, invalid formats)")
-        print(f"      3. Test all conditional branches (if/else)")
-        print(f"      4. Add boundary value tests")
     
     def show_comparison(self):
         """Generate comparison"""
@@ -577,13 +563,13 @@ def check_api():
         send_event('comparison', comparison)
     
     def git_commit_and_push(self):
-        """Git commit and push"""
+        """Git operations"""
         try:
             result = subprocess.run(['git', 'status', '--porcelain', self.test_file_path], 
                                   capture_output=True, text=True)
             
             if not result.stdout.strip():
-                print("   ℹ️  No changes")
+                print("   No changes")
                 send_event('git', {'committed': False, 'pushed': False, 'message': 'No changes'})
                 return
             
@@ -591,9 +577,7 @@ def check_api():
             print("   ✅ Staged")
             
             timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            commit_msg = f'🤖 AI tests v{self.version} - {timestamp}'
-            
-            subprocess.run(['git', 'commit', '-m', commit_msg, '--no-verify'],
+            subprocess.run(['git', 'commit', '-m', f'🤖 v{self.version} - {timestamp}', '--no-verify'],
                          capture_output=True, check=True)
             
             result = subprocess.run(['git', 'rev-parse', '--short', 'HEAD'],
@@ -605,47 +589,27 @@ def check_api():
             send_event('git', {'committed': True, 'pushed': False, 'message': f'Committed ({commit_hash})'})
             
             # Push
-            result = subprocess.run(['git', 'branch', '--show-current'],
-                                  capture_output=True, text=True)
+            result = subprocess.run(['git', 'branch', '--show-current'], capture_output=True, text=True)
             branch = result.stdout.strip() or 'main'
             
             result = subprocess.run(['git', 'remote'], capture_output=True, text=True)
             
-            if 'origin' not in result.stdout:
-                print("   ℹ️  No remote")
-                send_event('git', {'committed': True, 'pushed': False, 'message': 'No remote'})
-                return
-            
-            print(f"   🚀 Pushing to origin/{branch}...")
-            
-            push_result = subprocess.run(['git', 'push', 'origin', branch],
-                                        capture_output=True, text=True, timeout=30)
-            
-            if push_result.returncode == 0:
-                print(f"   ✅ Pushed")
-                send_event('git', {'committed': True, 'pushed': True, 'message': f'Pushed to {branch}'})
-                send_event('cicd', {'status': 'triggered', 'message': 'CI/CD triggered', 'build': 'GitHub'})
-            else:
-                print(f"   ⚠️  Push failed")
-                send_event('git', {'committed': True, 'pushed': False, 'message': 'Push failed'})
+            if 'origin' in result.stdout:
+                print(f"   🚀 Pushing...")
+                
+                push_result = subprocess.run(['git', 'push', 'origin', branch],
+                                           capture_output=True, text=True, timeout=30)
+                
+                if push_result.returncode == 0:
+                    print(f"   ✅ Pushed")
+                    send_event('git', {'committed': True, 'pushed': True, 'message': f'Pushed to {branch}'})
+                    send_event('cicd', {'status': 'triggered', 'message': 'CI/CD triggered', 'build': 'GitHub'})
+                else:
+                    print(f"   ⚠️ Push failed")
+                    send_event('git', {'committed': True, 'pushed': False, 'message': 'Push failed'})
         
         except Exception as e:
             print(f"   ❌ Error: {e}")
-            send_event('git', {'committed': False, 'pushed': False, 'message': str(e)[:50]})
-    
-    def send_completion(self):
-        """Send completion event to trigger auto-refresh"""
-        duration = (datetime.now() - self.start_time).total_seconds()
-        
-        send_event('poc_complete', {
-            'duration': duration,
-            'version': self.version,
-            'tests': self.unique_test_count,
-            'passed': self.passed_tests,
-            'failed': self.failed_tests,
-            'coverage': self.actual_coverage,
-            'timestamp': datetime.now().isoformat()
-        })
     
     def print_summary(self):
         duration = (datetime.now() - self.start_time).total_seconds()
