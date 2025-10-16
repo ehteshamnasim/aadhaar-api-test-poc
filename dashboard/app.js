@@ -286,6 +286,32 @@ case 'clear':
     case 'error':
       addLog(`Error: ${data.message}`, 'error');
       break;
+      // AUTO-REFRESH ON COMPLETION
+case 'poc_complete':
+    addLog(`✅ POC completed in ${data.duration}s`, 'success');
+    
+    // Show hidden sections
+    document.querySelectorAll('.hidden-until-complete').forEach(el => {
+        el.style.display = 'block';
+    });
+    
+    // Auto-reload after 2 seconds to show final state
+    setTimeout(() => {
+        addLog('Refreshing dashboard...', 'info');
+        location.reload();
+    }, 2000);
+    break;
+
+case 'tests_started':
+    // Hide coverage and test viewer until complete
+    const coverageCard = document.querySelector('.coverage-card');
+    const testViewerButtons = document.querySelector('.actions');
+    
+    if (coverageCard) coverageCard.classList.add('hidden-until-complete');
+    if (testViewerButtons) testViewerButtons.classList.add('hidden-until-complete');
+    
+    addLog('Tests executing - coverage will be calculated after...', 'info');
+    break;
   }
 };
 
