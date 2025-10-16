@@ -100,3 +100,32 @@ def test_demographics_forbidden_access():
     response = requests.post(f"{BASE_URL}/aadhaar/demographics", json=payload)
     assert response.status_code == 403
     assert isinstance(response.json(), dict)
+
+
+# --- New tests (2025-10-16 16:08:23) ---
+
+def test_demographics_invalid_consent(headers):
+    """
+    Test retrieval of demographic details with invalid consent value.
+    """
+    payload = {
+        "aadhaar_number": "123456789012",
+        "consent": "invalid"
+    }
+    response = requests.post(f"{BASE_URL}/aadhaar/demographics", json=payload, headers=headers)
+    assert response.status_code == 400
+    assert isinstance(response.json(), dict)
+
+
+def test_demographics_unauthorized(headers):
+    """
+    Test retrieval of demographic details without proper authorization.
+    """
+    payload = {
+        "aadhaar_number": "123456789012",
+        "consent": True
+    }
+    # Simulate unauthorized access by not providing necessary headers or tokens
+    response = requests.post(f"{BASE_URL}/aadhaar/demographics", json=payload)
+    assert response.status_code == 403
+    assert isinstance(response.json(), dict)
