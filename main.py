@@ -448,40 +448,26 @@ Endpoints:
         print("   ✅ API accessible, running tests...")
         
         try:
-            # Try running pytest with JSON report first (if plugin available)
-            json_report_path = 'test_report.json'
+            # Always use text parsing for now (more reliable)
+            print("   📊 Running pytest with verbose output...")
+            result = subprocess.run([
+                'pytest', self.test_file_path, '-v', '--tb=short', '-x'
+            ], capture_output=True, text=True, timeout=90)
             
-            # Check if pytest-json-report is available
-            json_available = self._check_pytest_json_plugin()
+            output = result.stdout + '\n' + result.stderr
             
-            if json_available:
-                result = subprocess.run([
-                    'pytest', self.test_file_path, 
-                    '--json-report', 
-                    '--json-report-file=' + json_report_path,
-                    '-v', '--tb=short'
-                ], capture_output=True, text=True, timeout=90)
-                
-                # Parse JSON report (most accurate)
-                if os.path.exists(json_report_path):
-                    if self._parse_json_report(json_report_path):
-                        print("   📊 Using JSON report for accurate results")
-                    else:
-                        # JSON parsing failed, fall back to text
-                        output = result.stdout + '\n' + result.stderr
-                        self._parse_pytest_output(output)
-                else:
-                    # No JSON file created, use text output
-                    output = result.stdout + '\n' + result.stderr
-                    self._parse_pytest_output(output)
-            else:
-                # No JSON plugin, use standard pytest
-                print("   📊 Using text output parsing (install pytest-json-report for better accuracy)")
-                result = subprocess.run([
-                    'pytest', self.test_file_path, '-v', '--tb=short'
-                ], capture_output=True, text=True, timeout=90)
-                
-                output = result.stdout + '\n' + result.stderr
+            print("\n   � Raw pytest output:")
+            print("   " + "=" * 60)
+            for i, line in enumerate(output.split('\n')[:20]):  # Show more lines
+                if line.strip():
+                    print(f"   {i:2}: {line[:100]}")
+            print("   " + "=" * 60)
+            
+            # Enhanced parsing with multiple methods
+            success = self._parse_pytest_output_enhanced(output)
+            
+            if not success:
+                print("   ⚠️  Enhanced parsing failed, trying basic parsing...")
                 self._parse_pytest_output(output)
             
             # Ensure totals match
@@ -623,48 +609,50 @@ Endpoints:
         
         return True
 
-    def _parse_pytest_output(self, output):
-        """Parse pytest text output for test results (fallback method)"""
+    def _parse_pytest_output_enhanced(self, output):
+        """Enhanced pytest output parsing with multiple strategies"""
         lines = output.split('\n')
         
-        # Count results from summary line
+        # Strategy 1: Look for test collection and execution
+        collected_count = 0
         for line in lines:
-            if 'failed' in line or 'passed' in line:
-                # Look for pattern like "5 failed, 1 passed in 2.34s"
+            if 'collected' in line and 'items' in line:
+                # Pattern: "collected 6 items"
                 import re
-                passed_match = re.search(r'(\d+)\s+passed', line)
-                failed_match = re.search(r'(\d+)\s+failed', line)
-                error_match = re.search(r'(\d+)\s+error', line)
-                skipped_match = re.search(r'(\d+)\s+skipped', line)
-                
-                if passed_match:
-                    self.passed_tests = int(passed_match.group(1))
-                if failed_match:
-                    self.failed_tests = int(failed_match.group(1))
-                if error_match:
-                    self.error_tests = int(error_match.group(1))
-                if skipped_match:
-                    self.skipped_tests = int(skipped_match.group(1))
+                match = re.search(r'collected (\d+) items?', line)
+                if match:
+                    collected_count = int(match.group(1))
+                    print(f"   📊 Collected {collected_count} tests")
         
-        # Extract individual test results
-        for i, line in enumerate(lines):
+        # Strategy 2: Parse individual test results
+        test_results = []
+        i = 0
+        while i < len(lines):
+            line = lines[i]
+            
+            # Look for test execution lines
             if '::test_' in line and ('PASSED' in line or 'FAILED' in line or 'ERROR' in line):
                 try:
                     # Extract test name
-                    parts = line.split('::')
-                    test_name = parts[-1].split()[0] if parts else 'unknown_test'
+                    if '::' in line:
+                        test_name = line.split('::')[-1].split()[0]
+                    else:
+                        test_name = f'test_{len(test_results)+1}'
                     
                     if 'PASSED' in line:
                         status = 'passed'
                         reason = "All assertions passed successfully"
-                    elif 'FAILED' in line:
+                        self.passed_tests += 1
+                    elif 'ERROR' in line:
+                        status = 'error'  
+                        reason = self._extract_error_reason_enhanced(lines, i)
+                        self.error_tests += 1
+                    else:  # FAILED
                         status = 'failed'
-                        reason = self._extract_failure_reason(lines, i)
-                    else:  # ERROR
-                        status = 'error'
-                        reason = self._extract_error_reason(lines, i)
+                        reason = self._extract_failure_reason_enhanced(lines, i)
+                        self.failed_tests += 1
                     
-                    self.test_details.append({
+                    test_results.append({
                         'name': test_name,
                         'status': status,
                         'passed': status == 'passed',
@@ -672,8 +660,121 @@ Endpoints:
                     })
                     
                 except Exception as e:
-                    print(f"   ⚠️  Parse error on line: {line[:50]}")
-                    continue
+                    print(f"   ⚠️  Parse error: {e}")
+            
+            i += 1
+        
+        # Strategy 3: Parse summary line
+        for line in lines:
+            if re.search(r'=+ .*(failed|passed|error)', line):
+                # Summary lines like "=== 3 failed, 2 passed in 1.23s ==="
+                import re
+                failed_match = re.search(r'(\d+) failed', line)
+                passed_match = re.search(r'(\d+) passed', line) 
+                error_match = re.search(r'(\d+) error', line)
+                
+                summary_failed = int(failed_match.group(1)) if failed_match else 0
+                summary_passed = int(passed_match.group(1)) if passed_match else 0
+                summary_error = int(error_match.group(1)) if error_match else 0
+                
+                # Use summary counts if they seem more accurate
+                if summary_failed + summary_passed + summary_error > 0:
+                    print(f"   📊 Summary counts: {summary_passed} passed, {summary_failed} failed, {summary_error} errors")
+                    self.passed_tests = summary_passed
+                    self.failed_tests = summary_failed  
+                    self.error_tests = summary_error
+        
+        # Set test details
+        self.test_details = test_results
+        
+        # If we have collected count but no results, all tests likely had setup errors
+        if collected_count > 0 and len(test_results) == 0:
+            print(f"   ⚠️  {collected_count} tests collected but no results - likely fixture/setup errors")
+            self.error_tests = collected_count
+            
+            # Create error details for missing results
+            for i in range(collected_count):
+                self.test_details.append({
+                    'name': f'test_{i+1}',
+                    'status': 'error',
+                    'passed': False,
+                    'reason': 'Test setup failed - likely missing fixture or import error'
+                })
+        
+        return len(test_results) > 0 or collected_count > 0
+
+    def _extract_error_reason_enhanced(self, lines, start_idx):
+        """Enhanced error reason extraction"""
+        reason = "Test setup/execution error"
+        
+        # Look for specific error patterns in next 10 lines
+        for j in range(start_idx + 1, min(start_idx + 10, len(lines))):
+            line = lines[j].strip()
+            
+            if 'fixture' in line and 'not found' in line:
+                # Extract fixture name
+                if "'" in line:
+                    fixture_name = line.split("'")[1]
+                    reason = f"Missing pytest fixture '{fixture_name}' - remove parameter or define fixture"
+                else:
+                    reason = "Missing pytest fixture - check test function parameters"
+                break
+            elif 'NameError' in line:
+                reason = "Variable not defined - check BASE_URL or other constants"
+                break
+            elif 'ImportError' in line or 'ModuleNotFoundError' in line:
+                reason = "Import error - missing required module"
+                break
+            elif 'SyntaxError' in line:
+                reason = "Syntax error in test code"
+                break
+        
+        return reason
+
+    def _extract_failure_reason_enhanced(self, lines, start_idx):
+        """Enhanced failure reason extraction"""
+        reason = "Test assertion failed"
+        
+        # Look for detailed failure info
+        for j in range(start_idx + 1, min(start_idx + 15, len(lines))):
+            line = lines[j].strip()
+            
+            if 'assert' in line.lower() and ('==' in line or '!=' in line):
+                reason = f"Assertion failed: {line[:120]}"
+                break
+            elif 'ConnectionError' in line or 'ConnectionRefusedError' in line:
+                reason = "Cannot connect to API - ensure API is running on correct port"
+                break  
+            elif 'TimeoutError' in line or 'timeout' in line.lower():
+                reason = "API request timeout - API may be slow or unresponsive"
+                break
+            elif 'AssertionError' in line:
+                reason = f"Assertion error: {line[:120]}"
+                break
+            elif line.startswith('E   ') and ('assert' in line or 'expected' in line.lower()):
+                reason = line[4:].strip()[:120]  # Remove 'E   ' prefix
+                break
+        
+        return reason
+
+    def _parse_pytest_output(self, output):
+        """Basic pytest text output parsing (fallback method)"""
+        lines = output.split('\n')
+        
+        # Count results from summary line  
+        for line in lines:
+            if 'failed' in line or 'passed' in line:
+                import re
+                passed_match = re.search(r'(\d+)\s+passed', line)
+                failed_match = re.search(r'(\d+)\s+failed', line)
+                error_match = re.search(r'(\d+)\s+error', line)
+                
+                if passed_match:
+                    self.passed_tests = int(passed_match.group(1))
+                if failed_match:
+                    self.failed_tests = int(failed_match.group(1))
+                if error_match:
+                    self.error_tests = int(error_match.group(1))
 
     def _extract_failure_reason(self, lines, start_idx):
         """Extract detailed failure reason from pytest output"""

@@ -73,6 +73,30 @@ def generate_otp():
     else:
         return jsonify({"error": "Aadhaar not found"}), 400
 
+@app.route('/api/v1/aadhaar/otp/verify', methods=['POST'])
+def verify_otp():
+    """Verify OTP for Aadhaar authentication"""
+    data = request.get_json()
+    
+    if not data or 'transaction_id' not in data or 'otp' not in data:
+        return jsonify({"error": "transaction_id and otp are required"}), 400
+    
+    transaction_id = data['transaction_id']
+    otp = data['otp']
+    
+    # Validate OTP format (6 digits)
+    if not re.match(r'^\d{6}$', otp):
+        return jsonify({"error": "OTP must be 6 digits"}), 400
+    
+    # Simple validation - accept specific OTPs for demo
+    if otp in ["123456", "654321"] and transaction_id.startswith("TXN"):
+        return jsonify({
+            "status": "verified",
+            "message": "OTP verification successful"
+        }), 200
+    else:
+        return jsonify({"error": "Invalid OTP or expired transaction"}), 400
+
 @app.route('/health', methods=['GET'])
 def health():
     """Health check endpoint"""
@@ -80,4 +104,10 @@ def health():
 
 if __name__ == '__main__':
     print("Starting Dummy Aadhaar API on http://localhost:5001")
+    print("Available endpoints:")
+    print("  POST /api/v1/aadhaar/verify - Verify Aadhaar number")
+    print("  POST /api/v1/aadhaar/demographics - Get demographic details")  
+    print("  POST /api/v1/aadhaar/otp/generate - Generate OTP")
+    print("  POST /api/v1/aadhaar/otp/verify - Verify OTP")
+    print("  GET  /health - Health check")
     app.run(host='0.0.0.0', port=5001, debug=True)

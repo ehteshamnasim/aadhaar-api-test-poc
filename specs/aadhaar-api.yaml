@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: UIDAI Aadhaar API
-  version: 1.2.4
+  version: 1.2.5
   description: Dummy Aadhaar verification APIs for POC
 
 servers:
@@ -114,3 +114,91 @@ paths:
                   error:
                     type: string
                     example: "Consent required"
+
+  /aadhaar/otp/generate:
+    post:
+      summary: Generate OTP for Aadhaar verification
+      description: Generates and sends OTP to registered mobile number for Aadhaar verification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                aadhaar_number:
+                  type: string
+                  pattern: '^[0-9]{12}$'
+                  example: "123456789012"
+              required:
+                - aadhaar_number
+      responses:
+        '200':
+          description: OTP generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transaction_id:
+                    type: string
+                    example: "TXN123456"
+                  message:
+                    type: string
+                    example: "OTP sent to registered mobile"
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid Aadhaar number"
+
+  /aadhaar/otp/verify:
+    post:
+      summary: Verify OTP for Aadhaar authentication
+      description: Verifies the OTP sent to registered mobile number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                transaction_id:
+                  type: string
+                  example: "TXN123456"
+                otp:
+                  type: string
+                  pattern: '^[0-9]{6}$'
+                  example: "123456"
+              required:
+                - transaction_id
+                - otp
+      responses:
+        '200':
+          description: OTP verified successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "verified"
+                  message:
+                    type: string
+                    example: "OTP verification successful"
+        '400':
+          description: Invalid OTP or transaction ID
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid OTP or expired transaction"

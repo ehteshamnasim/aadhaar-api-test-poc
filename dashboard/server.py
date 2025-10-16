@@ -471,15 +471,16 @@ def test_file_changed():
 
 
 if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 8082))  # Use port 8082 by default
     print("\n" + "="*70)
     print("📊 AI Test Automation Dashboard")
     print("="*70)
-    print("\n🌐 Dashboard: http://localhost:8080")
-    print("📡 SSE Stream: http://localhost:8080/events")
-    print("📨 Event API: POST http://localhost:8080/api/event")
-    print("💚 Health: http://localhost:8080/api/health")
+    print(f"\n🌐 Dashboard: http://localhost:{port}")
+    print(f"📡 SSE Stream: http://localhost:{port}/events")
+    print(f"📨 Event API: POST http://localhost:{port}/api/event")
+    print(f"💚 Health: http://localhost:{port}/api/health")
     print("\n⏹️  Press Ctrl+C to stop\n")
     
-    app.run(host='0.0.0.0', port=8080, debug=False, threaded=True)
+    app.run(host='0.0.0.0', port=port, debug=False, threaded=True)
 
 
