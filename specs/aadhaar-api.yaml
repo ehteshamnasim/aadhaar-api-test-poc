@@ -11,7 +11,7 @@ paths:
   /aadhaar/verify:
     post:
       summary: Verify Aadhaar number
-      description: Validates if Aadhaar number is valid (12 digits)
+      description: Validates if Aadhaar number is valid (2 digits)
       requestBody:
         required: true
         content:
