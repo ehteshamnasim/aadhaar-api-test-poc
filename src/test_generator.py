@@ -80,12 +80,13 @@ API Endpoints to test:
         
         prompt += """
 Generate ONLY the Python code for pytest tests. Include:
-1. Import statements (pytest, from api.dummy_aadhaar_api import app)
+1. Import statements (pytest, pytest.mark.parametrize, from api.dummy_aadhaar_api import app)
 2. Pytest fixture for test client
-3. Test functions using client.post(), client.get(), etc.
-4. Assert statements for status codes and response structure
+3. Use pytest.mark.parametrize for test data variations where multiple scenarios exist
+4. Test functions using client.post(), client.get(), etc.
+5. Assert statements for status codes and response structure
 
-Example structure:
+Example structure with parameterization:
 ```python
 import pytest
 from api.dummy_aadhaar_api import app
@@ -94,10 +95,28 @@ from api.dummy_aadhaar_api import app
 def client():
     return app.test_client()
 
-def test_example(client):
-    response = client.post('/api/v1/path', json={{"field": "value"}})
-    assert response.status_code == 200
+@pytest.mark.parametrize("input_data,expected_status,test_description", [
+    ({{"field": "valid_value"}}, 200, "valid input"),
+    ({{"field": ""}}, 400, "empty field"),
+    ({{"field": None}}, 400, "null field"),
+    (None, 400, "missing body"),
+])
+def test_endpoint_variations(client, input_data, expected_status, test_description):
+    \"\"\"Test endpoint with various input scenarios\"\"\"
+    response = client.post('/api/v1/path', json=input_data)
+    assert response.status_code == expected_status, f"Failed for: {{test_description}}"
 ```
+
+Benefits of parameterization:
+- Reduces code duplication
+- Makes it easy to add new test cases
+- Better test organization
+- Each parameter set runs as a separate test
+
+Use parameterization when testing:
+- Multiple valid/invalid input combinations
+- Different error cases (missing fields, wrong types, invalid values)
+- Various edge cases (empty strings, null values, boundary values)
 
 Do not include explanations, just the code. Start directly with imports.
 """

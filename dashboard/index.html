@@ -18,10 +18,7 @@
                 <span class="status-label">Status:</span>
                 <span id="status" class="status-value">Initializing...</span>
             </div>
-            <div class="status-item">
-                <span class="status-label">Last Update:</span>
-                <span id="timestamp" class="status-value">-</span>
-            </div>
+          
             <div class="status-item">
                 <button id="reset-btn" class="reset-button" onclick="resetDashboard()">Reset Dashboard</button>
             </div>
@@ -198,7 +195,7 @@
                 <!-- Action Buttons -->
                 <div class="actions">
                     <a href="/coverage-report" target="_blank" id="coverage-btn" class="button button-primary" style="display: none;">View Coverage Report</a>
-                    <a href="#" id="tests-btn" class="button button-secondary" style="display: none;" onclick="window.open('about:blank').document.write('<pre>' + 'Test file location: tests/test_aadhaar_api_v*.py' + '</pre>')">View Generated Tests</a>
+                    <a href="/generated-tests" id="tests-btn" class="button button-secondary" style="display: none;" target="_blank">View Generated Tests</a>
                 </div>
 
                 <!-- Comparison Section -->
