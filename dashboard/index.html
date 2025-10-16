@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Test Automation POC - Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🤖 AI-Powered API Test Automation POC</h1>
+            <p>Real-time test generation and execution dashboard</p>
+        </header>
+
+        <div class="status-bar">
+            <div class="status-item">
+                <span class="status-label">Status:</span>
+                <span id="status" class="status-value">Initializing...</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Last Update:</span>
+                <span id="timestamp" class="status-value">-</span>
+            </div>
+        </div>
+
+        <div class="grid">
+            <!-- Parsing Section -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>📄 API Specification</h2>
+                </div>
+                <div class="card-body">
+                    <div class="stat">
+                        <span class="stat-label">File:</span>
+                        <span id="spec-file">-</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Status:</span>
+                        <span id="parse-status" class="badge">Pending</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Endpoints:</span>
+                        <span id="endpoint-count">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Generation Section -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>🤖 Test Generation</h2>
+                </div>
+                <div class="card-body">
+                    <div class="progress-bar">
+                        <div id="gen-progress" class="progress-fill" style="width: 0%"></div>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Tests Generated:</span>
+                        <span id="tests-generated">0</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Status:</span>
+                        <span id="gen-status" class="badge">Pending</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Validation Section -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>✓ Code Validation</h2>
+                </div>
+                <div class="card-body">
+                    <div class="stat">
+                        <span class="stat-label">Syntax:</span>
+                        <span id="syntax-check" class="badge">Pending</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Imports:</span>
+                        <span id="import-check" class="badge">Pending</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Overall:</span>
+                        <span id="validation-status" class="badge">Pending</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Execution Section -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>🧪 Test Execution</h2>
+                </div>
+                <div class="card-body">
+                    <div class="stat">
+                        <span class="stat-label">Passed:</span>
+                        <span id="tests-passed" class="text-success">0</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Failed:</span>
+                        <span id="tests-failed" class="text-danger">0</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Total:</span>
+                        <span id="tests-total">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Coverage Section -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>📊 Code Coverage</h2>
+                </div>
+                <div class="card-body">
+                    <div class="coverage-circle">
+                        <svg width="120" height="120">
+                            <circle cx="60" cy="60" r="50" fill="none" stroke="#e0e0e0" stroke-width="10"/>
+                            <circle id="coverage-circle" cx="60" cy="60" r="50" fill="none" 
+                                    stroke="#4caf50" stroke-width="10" 
+                                    stroke-dasharray="314" stroke-dashoffset="314"
+                                    transform="rotate(-90 60 60)"/>
+                            <text x="60" y="70" text-anchor="middle" font-size="24" font-weight="bold" id="coverage-text">0%</text>
+                        </svg>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Target:</span>
+                        <span>85%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contract Testing Section -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>📋 Contract Testing</h2>
+                </div>
+                <div class="card-body">
+                    <div class="stat">
+                        <span class="stat-label">Contracts Tested:</span>
+                        <span id="contracts-tested">0</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Passed:</span>
+                        <span id="contracts-passed" class="text-success">0</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Failed:</span>
+                        <span id="contracts-failed" class="text-danger">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Git Section -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>🔗 Git Status</h2>
+                </div>
+                <div class="card-body">
+                    <div class="stat">
+                        <span class="stat-label">Repository:</span>
+                        <span id="git-repo">-</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Commit:</span>
+                        <span id="git-commit" class="badge">Pending</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CI/CD Section -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>🚀 CI/CD Status</h2>
+                </div>
+                <div class="card-body">
+                    <div class="stat">
+                        <span class="stat-label">Pipeline:</span>
+                        <span id="cicd-status" class="badge">Not Started</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Build:</span>
+                        <span id="build-status">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="actions">
+            <a href="htmlcov/index.html" target="_blank" class="button button-primary">View Coverage Report</a>
+            <a href="tests/" target="_blank" class="button button-secondary">View Generated Tests</a>
+        </div>
+
+        <div class="log-section">
+            <h3>📝 Activity Log</h3>
+            <div id="log" class="log-container"></div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
