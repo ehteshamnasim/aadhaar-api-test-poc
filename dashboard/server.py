@@ -4,6 +4,8 @@ import json
 import time
 import queue
 import threading
+import os
+
 
 app = Flask(__name__, static_folder='.')
 CORS(app)  # Enable CORS
@@ -128,6 +130,88 @@ def health():
         'timestamp': time.time()
     }, 200
 
+@app.route('/coverage-report')
+def coverage_report():
+    """Redirect to coverage HTML report"""
+    return send_from_directory('../htmlcov', 'index.html')
+
+@app.route('/coverage-report/<path:filename>')
+def coverage_files(filename):
+    """Serve coverage report static files"""
+    return send_from_directory('../htmlcov', filename)
+
+@app.route('/generated-tests')
+def generated_tests():
+    """Show generated test file"""
+    try:
+        test_file = '../tests/test_aadhaar_api.py'
+        if os.path.exists(test_file):
+            with open(test_file, 'r') as f:
+                content = f.read()
+            
+            # Return as HTML with syntax highlighting
+            html = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Generated Tests</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+    <style>
+        body {{
+            margin: 0;
+            padding: 20px;
+            background: #1e1e1e;
+            font-family: 'Courier New', monospace;
+        }}
+        .container {{
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #2d2d2d;
+            padding: 20px;
+            border-radius: 8px;
+        }}
+        h1 {{
+            color: #fff;
+            margin-bottom: 20px;
+        }}
+        pre {{
+            margin: 0;
+            border-radius: 4px;
+        }}
+        .back-btn {{
+            display: inline-block;
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }}
+        .back-btn:hover {{
+            background: #764ba2;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="back-btn">← Back to Dashboard</a>
+        <h1>Generated Test File: test_aadhaar_api.py</h1>
+        <pre><code class="language-python">{content}</code></pre>
+    </div>
+    <script>hljs.highlightAll();</script>
+</body>
+</html>
+"""
+            return html
+        else:
+            return "<h1>No tests generated yet</h1><a href='/'>Back to Dashboard</a>"
+    except Exception as e:
+        return f"<h1>Error: {e}</h1><a href='/'>Back to Dashboard</a>"
+
+
+
 if __name__ == '__main__':
     print("\n" + "="*70)
     print("📊 AI Test Automation Dashboard")
@@ -139,3 +223,5 @@ if __name__ == '__main__':
     print("\n⏹️  Press Ctrl+C to stop\n")
     
     app.run(host='0.0.0.0', port=8080, debug=False, threaded=True)
+
+

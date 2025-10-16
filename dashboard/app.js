@@ -137,6 +137,23 @@ eventSource.onmessage = function(event) {
                        data.failed === 0 ? 'success' : 'error');
             }
             break;
+
+            case 'comparison':
+    // Show comparison section
+    document.getElementById('comparison-section').style.display = 'block';
+    
+    // Before AI
+    document.getElementById('before-effort').textContent = data.before.manual_effort;
+    document.getElementById('before-tests').textContent = data.before.test_cases;
+    document.getElementById('before-coverage').textContent = data.before.coverage;
+    
+    // After AI
+    document.getElementById('after-time').textContent = data.after.ai_time;
+    document.getElementById('after-tests').textContent = data.after.test_cases;
+    document.getElementById('after-lines').textContent = data.after.lines_of_code;
+    
+    addLog('Comparison: Manual effort vs AI automation', 'success');
+    break;
             
         case 'git':
             document.getElementById('git-repo').textContent = 'Initialized';

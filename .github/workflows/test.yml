@@ -15,10 +15,10 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.10'
     
@@ -30,35 +30,67 @@ jobs:
     - name: Start Dummy API
       run: |
         cd api
-        python dummy_aadhaar_api.py &
+        nohup python dummy_aadhaar_api.py > api.log 2>&1 &
         sleep 5
-        curl http://localhost:5000/health
+        curl http://localhost:5000/health || (cat api.log && exit 1)
     
     - name: Run tests
       run: |
-        pytest tests/ -v --cov=api --cov-report=html --cov-report=term
+        pytest tests/ -v --cov=api --cov-report=html --cov-report=term --cov-report=json
     
     - name: Check coverage threshold
       run: |
-        coverage report --fail-under=85
+        COVERAGE=$(python -c "import json; print(json.load(open('coverage.json'))['totals']['percent_covered'])")
+        echo "Coverage: $COVERAGE%"
+        if (( $(echo "$COVERAGE < 85" | bc -l) )); then
+          echo "❌ Coverage $COVERAGE% is below 85% threshold"
+          exit 1
+        fi
+        echo "✅ Coverage $COVERAGE% meets threshold"
     
     - name: Upload coverage report
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: coverage-report
         path: htmlcov/
+        retention-days: 30
+    
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-results
+        path: |
+          coverage.json
+          .coverage
+        retention-days: 30
     
     - name: Comment PR with results
-      uses: actions/github-script@v6
+      uses: actions/github-script@v7
       if: github.event_name == 'pull_request'
       with:
         script: |
           const fs = require('fs');
-          const coverage = fs.readFileSync('coverage.txt', 'utf8');
+          const coverage = JSON.parse(fs.readFileSync('coverage.json', 'utf8'));
+          const percentage = coverage.totals.percent_covered.toFixed(1);
+          const passed = '✅';
+          const failed = '❌';
+          const status = percentage >= 85 ? passed : failed;
+          
+          const body = `## 🤖 AI-Generated Test Results
+          
+          ${status} **Coverage: ${percentage}%** (Target: 85%)
+          
+          - Lines covered: ${coverage.totals.covered_lines}/${coverage.totals.num_statements}
+          - Missing lines: ${coverage.totals.missing_lines}
+          
+          [View Full Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          `;
+          
           github.rest.issues.createComment({
             issue_number: context.issue.number,
             owner: context.repo.owner,
             repo: context.repo.repo,
-            body: `## 🤖 AI-Generated Test Results\n\`\`\`\n${coverage}\n\`\`\``
+            body: body
           });

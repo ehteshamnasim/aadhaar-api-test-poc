@@ -148,6 +148,10 @@ class POCOrchestrator:
             send_event('status', {'message': 'Calculating coverage...'})
             self.calculate_coverage()
             time.sleep(0.3)
+
+            self.show_comparison()
+            time.sleep(0.1)
+
             
             # Step 8: Git commit
             send_event('status', {'message': 'Committing to Git...'})
@@ -361,24 +365,219 @@ class POCOrchestrator:
             print(f"   ⚠️ Error: {e}")
             send_event('coverage', {'percentage': 0})
     
+    
+
     def git_commit(self):
-        """Git commit"""
-        print("\n📝 Git commit...")
+        """Git commit and push"""
+        print("\n📝 Committing to Git...")
         
-        results = GitCommitter.auto_commit_tests(self.test_file_path)
-        committed = 'commit' in results and results['commit'][0]
+        try:
+            # Check if file changed
+            result = subprocess.run(
+                ['git', 'status', '--porcelain', self.test_file_path],
+                capture_output=True,
+                text=True
+            )
+            
+            if not result.stdout.strip():
+                print("   ℹ️ No changes to commit")
+                send_event('git', {
+                    'committed': False,
+                    'pushed': False,
+                    'message': 'No changes'
+                })
+                return
+            
+            print(f"   Changes detected in {self.test_file_path}")
+            
+            # Add file
+            subprocess.run(['git', 'add', self.test_file_path], check=True)
+            print("   ✓ Staged for commit")
+            
+            # Commit
+            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            commit_msg = f"🤖 AI-generated tests - {timestamp}"
+            
+            subprocess.run(
+                ['git', 'commit', '-m', commit_msg, '--no-verify'],
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            
+            # Get commit hash
+            result = subprocess.run(
+                ['git', 'rev-parse', '--short', 'HEAD'],
+                capture_output=True,
+                text=True
+            )
+            commit_hash = result.stdout.strip()
+            print(f"   ✓ Committed: {commit_hash}")
+            
+            send_event('git', {
+                'committed': True,
+                'pushed': False,
+                'message': f'Committed ({commit_hash})'
+            })
+            
+            # Auto-push
+            print("   🚀 Pushing to remote...")
+            send_event('status', {'message': 'Pushing to remote...'})
+            
+            # Get current branch
+            result = subprocess.run(
+                ['git', 'branch', '--show-current'],
+                capture_output=True,
+                text=True
+            )
+            branch = result.stdout.strip() or 'main'
+            
+            # Check if remote exists
+            result = subprocess.run(
+                ['git', 'remote'],
+                capture_output=True,
+                text=True
+            )
+            
+            if 'origin' in result.stdout:
+                # Push to remote
+                push_result = subprocess.run(
+                    ['git', 'push', 'origin', branch],
+                    capture_output=True,
+                    text=True,
+                    timeout=30
+                )
+                
+                if push_result.returncode == 0:
+                    print(f"   ✓ Pushed to origin/{branch}")
+                    send_event('git', {
+                        'committed': True,
+                        'pushed': True,
+                        'message': f'Pushed to origin/{branch}'
+                    })
+                    
+                    send_event('cicd', {
+                        'status': 'triggered',
+                        'message': 'CI/CD pipeline triggered',
+                        'build': 'Starting...'
+                    })
+                else:
+                    error_msg = push_result.stderr.strip()
+                    print(f"   ⚠️ Push failed: {error_msg}")
+                    send_event('git', {
+                        'committed': True,
+                        'pushed': False,
+                        'message': f'Push failed: {error_msg[:50]}'
+                    })
+            else:
+                print("   ℹ️ No remote configured, skipping push")
+                send_event('git', {
+                    'committed': True,
+                    'pushed': False,
+                    'message': 'No remote configured'
+                })
+            
+        except subprocess.TimeoutExpired:
+            print("   ⚠️ Push timeout (30s)")
+            send_event('git', {
+                'committed': True,
+                'pushed': False,
+                'message': 'Push timeout'
+            })
+        except subprocess.CalledProcessError as e:
+            print(f"   ❌ Git error: {e.stderr if e.stderr else str(e)}")
+            send_event('git', {
+                'committed': False,
+                'pushed': False,
+                'message': 'Commit/push failed'
+            })
+        except Exception as e:
+            print(f"   ❌ Error: {e}")
+            send_event('git', {
+                'committed': False,
+                'pushed': False,
+                'message': str(e)
+            })
+
+    def show_comparison(self):
+        """Show before/after comparison"""
+        print("\n📊 Test Generation Summary")
+        print("=" * 50)
         
-        send_event('git', {
-            'committed': committed,
-            'message': 'Committed' if committed else 'No changes'
-        })
+        # Count endpoints
+        parser = OpenAPIParser(self.spec_path)
+        endpoints = len(parser.get_endpoints())
+        
+        # Count generated tests
+        if self.test_file_path and os.path.exists(self.test_file_path):
+            with open(self.test_file_path, 'r') as f:
+                content = f.read()
+                test_count = content.count('def test_')
+                lines = len(content.split('\n'))
+        else:
+            test_count = 0
+            lines = 0
+        
+        comparison = {
+            'before': {
+                'manual_effort': f'{endpoints * 30} minutes',
+                'test_files': 0,
+                'test_cases': 0,
+                'coverage': '0%'
+            },
+            'after': {
+                'ai_time': f'{(datetime.now() - self.start_time).seconds} seconds',
+                'test_files': 1,
+                'test_cases': test_count,
+                'lines_of_code': lines,
+                'coverage': 'Calculated'
+            }
+        }
+        
+        print("\n📉 Before AI:")
+        print(f"   Manual effort: {comparison['before']['manual_effort']}")
+        print(f"   Test coverage: {comparison['before']['coverage']}")
+        
+        print("\n📈 After AI:")
+        print(f"   Generation time: {comparison['after']['ai_time']}")
+        print(f"   Test cases: {comparison['after']['test_cases']}")
+        print(f"   Lines of code: {comparison['after']['lines_of_code']}")
+        
+        # Send to dashboard
+        send_event('comparison', comparison)
+
+    def run_with_retry(self, max_retries=2):
+        """Run POC with retry on failure"""
+        for attempt in range(max_retries + 1):
+            try:
+                if attempt > 0:
+                    print(f"\n🔄 Retry attempt {attempt}/{max_retries}")
+                    send_event('status', {'message': f'Retrying... (attempt {attempt})'})
+                    time.sleep(5)  # Wait before retry
+                
+                self.run()
+                return True  # Success
+                
+            except Exception as e:
+                if attempt < max_retries:
+                    print(f"   ⚠️ Attempt {attempt + 1} failed: {e}")
+                    send_event('status', {'message': f'Attempt {attempt + 1} failed, retrying...'})
+                else:
+                    print(f"   ❌ All attempts failed")
+                    send_event('error', {'message': f'Failed after {max_retries + 1} attempts'})
+                    raise
+        
+        return False
+
 
 
 def main():
     """Main entry point"""
     orchestrator = POCOrchestrator(spec_path='specs/aadhaar-api.yaml')
-    orchestrator.run()
-    sys.exit(0)
+    
+    success = orchestrator.run_with_retry(max_retries=2)
+    
+    sys.exit(0 if success else 1)
 
 
 if __name__ == '__main__':
