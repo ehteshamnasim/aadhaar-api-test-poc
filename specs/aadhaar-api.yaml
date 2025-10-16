@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: UIDAI Aadhaar API
-  version: 1.2.571434
+  version: 1.2.5714343
   description: Dummy Aadhaar verification APIs for POC
 
 servers:
@@ -11,7 +11,7 @@ paths:
   /aadhaar/verify:
     post:
       summary: Verify Aadhaar number
-      description: Validates if Aadhaar number is valid (2 digits)
+      description: Validates if Aadhaar number is valid (12 digits)
       requestBody:
         required: true
         content:
@@ -95,6 +95,168 @@ paths:
                   address:
                     type: string
                     example: "123 Main St, City"
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '403':
+          description: Consent not provided
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Consent required"
+
+  /aadhaar/otp/generate:
+    post:
+      summary: Generate OTP for Aadhaar
+      description: Sends OTP to registered mobile for authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                aadhaar_number:
+                  type: string
+                  pattern: '^[0-9]{12}$'
+                  example: "123456789012"
+              required:
+                - aadhaar_number
+      responses:
+        '200':
+          description: OTP generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transaction_id:
+                    type: string
+                    example: "TXN123456"
+                  message:
+                    type: string
+                    example: "OTP sent to registered mobile"
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+
+  /aadhaar/otp/verify:
+    post:
+      summary: Verify OTP
+      description: Verifies the OTP sent to the user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                transaction_id:
+                  type: string
+                  example: "TXN123456"
+                otp:
+                  type: string
+                  example: "123456"
+              required:
+                - transaction_id
+                - otp
+      responses:
+        '200':
+          description: OTP verified
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "OTP verified successfully"
+                  aadhaar_number:
+                    type: string
+                    example: "123456789012"
+        '400':
+          description: Invalid OTP
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid or expired OTP"
+
+  /aadhaar/ekyc:
+    post:
+      summary: Perform eKYC
+      description: Completes eKYC after OTP verification and consent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                aadhaar_number:
+                  type: string
+                  pattern: '^[0-9]{12}$'
+                  example: "123456789012"
+                transaction_id:
+                  type: string
+                  example: "TXN123456"
+                consent:
+                  type: boolean
+                  example: true
+              required:
+                - aadhaar_number
+                - transaction_id
+                - consent
+      responses:
+        '200':
+          description: eKYC successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "eKYC completed"
+                  details:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      dob:
+                        type: string
+                      gender:
+                        type: string
+                      address:
+                        type: string
+                  xml_signature:
+                    type: string
+                    example: "<dummy_signed_xml>signed_data</dummy_signed_xml>"
         '400':
           description: Invalid request
           content:
