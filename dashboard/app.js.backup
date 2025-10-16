@@ -193,36 +193,49 @@ eventSource.onmessage = function(event) {
             document.getElementById('tests-failed').textContent = data.failed || 0;
             document.getElementById('tests-total').textContent = data.total || 0;
             
-            const statusText = `Executed ${data.total || 0} tests: ${data.passed || 0} passed, ${data.failed || 0} failed`;
+            const statusText = `Tests: ${data.passed || 0}/${data.total || 0} passed`;
             addLog(statusText, data.failed === 0 ? 'success' : 'error');
             
-            // Populate new Test Details panel
+            // Show test details if available
             if (data.details && data.details.length > 0) {
-                const detailsList = document.getElementById('test-details-list');
-                detailsList.innerHTML = '';
-                
-                data.details.forEach((detail) => {
-                    const detailDiv = document.createElement('div');
-                    detailDiv.className = detail.passed ? 'test-detail-item passed' : 'test-detail-item failed';
+                const detailsCard = document.getElementById('test-details-card');
+                if (detailsCard) {
+                    detailsCard.style.display = 'block';
                     
-                    detailDiv.innerHTML = `
-                        <span class="test-name">${detail.name}</span>
-                        <div class="test-reason">${detail.reason}</div>
-                    `;
-                    detailsList.appendChild(detailDiv);
-                });
+                    const detailsList = document.getElementById('test-details-list');
+                    detailsList.innerHTML = '';
+                    
+                   data.details.forEach((detail) => {
+                        const detailDiv = document.createElement('div');
+                        detailDiv.className = detail.passed ? 'test-detail-item passed' : 'test-detail-item failed';
+                        
+                        const icon = detail.passed ? '✅' : '❌';
+                        const statusClass = detail.passed ? 'status-passed' : 'status-failed';
+                        const statusText = detail.passed ? 'PASSED' : 'FAILED';
+                        
+                        detailDiv.innerHTML = `
+                            <div class="test-detail-header">
+                                <span class="test-icon">${icon}</span>
+                                <span class="test-name">${detail.name}</span>
+                                <span class="test-status ${statusClass}">${statusText}</span>
+                            </div>
+                            <div class="test-reason">${detail.reason}</div>
+                        `;
+                        detailsList.appendChild(detailDiv);
+                    });
+                }
             }
             break;
             
         case 'coverage':
             const percentage = data.percentage || 0;
             updateCoverage(percentage);
-            addLog(`Code coverage analysis complete: ${percentage}%`, percentage >= 85 ? 'success' : 'info');
+            addLog(`Coverage: ${percentage}%`, percentage >= 85 ? 'success' : 'info');
             
             // SHOW "View Coverage Report" button when coverage complete
             if (percentage > 0) {
                 document.getElementById('coverage-btn').style.display = 'inline-block';
-                addLog('Coverage report generated successfully and ready for review', 'success');
+                addLog('✅ Coverage report ready - click "View Coverage Report"', 'success');
             }
             break;
             

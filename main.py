@@ -76,7 +76,7 @@ class POCOrchestrator:
     def run(self):
         """Execute workflow"""
         print("\n" + "="*70)
-        print(f"🚀 AI Test Automation v{self.version}")
+        print(f"AI Test Automation Pipeline - Version {self.version}")
         print("="*70 + "\n")
         
         # Clear dashboard
@@ -133,14 +133,14 @@ class POCOrchestrator:
             self.print_summary()
             
         except Exception as e:
-            print(f"\n❌ Error: {e}")
+            print(f"\n{e}")
             import traceback
             traceback.print_exc()
             send_event('error', {'message': str(e)})
     
     def _log(self, message: str):
-        """Professional logging"""
-        print(f"⚡ {message}")
+        """Enhanced logging with contextual messages"""
+        print(f"[PROGRESS] {message}")
         send_event('status', {'message': message})
     
     def parse_spec(self):
@@ -160,28 +160,35 @@ class POCOrchestrator:
         return parsed
     
     def generate_tests(self, parsed_spec):
-        """Generate tests"""
+        """Generate tests with real-time progress"""
         generator = TestGenerator()
         
         if not generator.check_ollama_status():
             raise Exception("AI model unavailable")
         
         send_event('generate', {
-            'progress': 20,
+            'progress': 10,
             'count': 0,
             'status': 'in_progress',
-            'message': 'AI analyzing API structure'
+            'message': 'Initializing AI model and analyzing API specification'
         })
         
-        # Progress thread
+        # Progress thread with engaging messages
         stop = threading.Event()
         
         def progress():
-            p = 30
-            msgs = ['Generating test scenarios', 'Writing test code', 'Optimizing coverage']
+            p = 20
+            msgs = [
+                'Analyzing endpoint patterns and data structures',
+                'Crafting test scenarios for each API endpoint',
+                'Generating assertion logic and validation checks',
+                'Building comprehensive test coverage matrix',
+                'Optimizing test cases for maximum code coverage',
+                'Finalizing test suite structure and fixtures'
+            ]
             idx = 0
             while not stop.is_set() and p < 85:
-                time.sleep(10)
+                time.sleep(8)
                 if not stop.is_set():
                     send_event('generate', {
                         'progress': p,
@@ -189,7 +196,7 @@ class POCOrchestrator:
                         'status': 'in_progress',
                         'message': msgs[idx % len(msgs)]
                     })
-                    p += 20
+                    p += 12
                     idx += 1
         
         t = threading.Thread(target=progress, daemon=True)
@@ -200,21 +207,30 @@ class POCOrchestrator:
             stop.set()
             t.join(timeout=1)
             
-            # Count unique
-            test_names = set()
+            # Count unique tests and send individual test events
+            test_names = []
             for line in test_code.split('\n'):
                 if line.strip().startswith('def test_'):
-                    test_names.add(line.split('(')[0].replace('def ', '').strip())
+                    name = line.split('(')[0].replace('def ', '').strip()
+                    if name not in test_names:
+                        test_names.append(name)
+                        # Send individual test creation event
+                        send_event('test_created', {
+                            'test_number': len(test_names),
+                            'test_name': name,
+                            'total_expected': self.endpoint_count * 2  # Rough estimate
+                        })
+                        time.sleep(0.1)  # Small delay for visual effect
             
             self.unique_test_count = len(test_names)
             
-            print(f"   ✓ {self.unique_test_count} test cases generated")
+            print(f"   {self.unique_test_count} test cases generated")
             
             send_event('generate', {
                 'progress': 100,
                 'count': self.unique_test_count,
                 'status': 'success',
-                'message': f'{self.unique_test_count} test cases ready'
+                'message': f'Test suite generation complete - {self.unique_test_count} test cases ready for execution'
             })
             
             return test_code
@@ -567,7 +583,7 @@ def client():
         duration = (datetime.now() - self.start_time).total_seconds()
         
         print("\n" + "="*70)
-        print("✅ AUTOMATION COMPLETE")
+        print("AUTOMATION COMPLETE")
         print("="*70)
         print(f"   Duration:    {duration:.1f}s")
         print(f"   Endpoints:   {self.endpoint_count}")
