@@ -337,24 +337,74 @@ def client():
                 if line.strip():
                     print(f"   | {line}")
             
-            # Parse results
+            # Parse results with detailed failure reasons
             self.passed_tests = 0
             self.failed_tests = 0
             details = []
+            failure_map = {}
             
-            for line in output.split('\n'):
-                if '::test_' in line:
+            # Extract failure details from FAILURES section
+            lines = output.split('\n')
+            in_failures = False
+            current_test = None
+            
+            for line in lines:
+                # Detect FAILURES section
+                if '=== FAILURES ===' in line or '=== ERRORS ===' in line:
+                    in_failures = True
+                    continue
+                if in_failures and '=== short test summary' in line:
+                    in_failures = False
+                
+                # Extract test failures
+                if in_failures:
+                    # Match lines like: test_aadhaar_api_v3.py:33: assert 200 == 400
+                    if '.py:' in line and 'assert' in line:
+                        parts = line.split(':')
+                        if len(parts) >= 2:
+                            # Try to extract line number and assertion
+                            try:
+                                line_num = parts[1].strip()
+                                assertion = ':'.join(parts[2:]).strip() if len(parts) > 2 else line.split('assert')[1].strip()
+                                # Store with line number as key for now
+                                failure_map[line_num] = f"Line {line_num}: {assertion}"[:120]
+                            except:
+                                pass
+            
+            # Build test results
+            test_line_map = {}
+            for i, line in enumerate(lines):
+                # Match test execution lines with status
+                if '::test_' in line and (' PASSED' in line or ' FAILED' in line):
+                    name = line.split('::')[1].split()[0]
+                    
                     if ' PASSED' in line:
                         self.passed_tests += 1
-                        name = line.split('::')[1].split()[0]
-                        details.append({'name': name, 'passed': True, 'reason': 'Test passed'})
+                        details.append({'name': name, 'passed': True, 'reason': 'All assertions passed'})
                         print(f"   ✓ {name}")
+                    
                     elif ' FAILED' in line:
                         self.failed_tests += 1
-                        name = line.split('::')[1].split()[0]
-                        reason = "Test failed - check logs"
+                        # Try to find corresponding failure reason
+                        reason = "Assertion failed"
+                        
+                        # Look for failure line in output
+                        for j in range(i+1, min(len(lines), i+50)):
+                            if '.py:' in lines[j] and 'assert' in lines[j]:
+                                line_num = lines[j].split(':')[1].strip() if ':' in lines[j] else ''
+                                if line_num in failure_map:
+                                    reason = failure_map[line_num]
+                                    break
+                                # Or extract directly
+                                elif 'assert' in lines[j]:
+                                    try:
+                                        reason = lines[j].split('assert')[1].strip()[:120]
+                                    except:
+                                        pass
+                                    break
+                        
                         details.append({'name': name, 'passed': False, 'reason': reason})
-                        print(f"   ✗ {name}")
+                        print(f"   ✗ {name}: {reason}")
             
             print(f"\n   Results: {self.passed_tests}/{self.unique_test_count} passed")
             

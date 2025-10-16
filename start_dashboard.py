@@ -25,6 +25,6 @@ if __name__ == '__main__':
     print("\n⏹️  Press Ctrl+C to stop\n")
     
     try:
-        app.run(host='0.0.0.0', port=8080, debug=False, threaded=True)
+        app.run(host='0.0.0.0', port=8090, debug=False, threaded=True)
     except KeyboardInterrupt:
         print("\n👋 Dashboard stopped\n")
