@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: UIDAI Aadhaar API
-  version: 1.2.571
+  version: 1.2.5714
   description: Dummy Aadhaar verification APIs for POC
 
 servers:
