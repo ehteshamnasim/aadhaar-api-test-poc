@@ -135,6 +135,9 @@ class POCOrchestrator:
             send_event('status', {'message': '🚀 POC Started'})
             time.sleep(0.5)
             
+            # Check for spec changes
+            spec_changed = self._check_spec_changes()
+            
             # Parse
             send_event('status', {'message': 'Parsing spec...'})
             parsed_spec = self.parse_spec()
@@ -155,14 +158,14 @@ class POCOrchestrator:
             self.save_test_file_with_header(test_code, parsed_spec)
             time.sleep(0.5)
             
-            # RUN TESTS - THIS IS THE CRITICAL FIX
+            # RUN TESTS - ENHANCED WITH ACCURATE COUNTING
             send_event('status', {'message': 'Executing tests...'})
             self.run_tests_with_detailed_capture()
             time.sleep(0.5)
             
-            # Contract tests
+            # Contract tests - ALIGNED WITH TEST EXECUTION
             send_event('status', {'message': 'Contract testing...'})
-            self.run_contract_tests(parsed_spec)
+            contract_results = self.run_contract_tests(parsed_spec)
             time.sleep(0.5)
             
             # Coverage
@@ -179,24 +182,33 @@ class POCOrchestrator:
             self.git_commit_and_push()
             time.sleep(0.5)
             
-            # Final
+            # Final summary
             duration = (datetime.now() - self.start_time).total_seconds()
             send_event('status', {'message': f'✅ Completed in {duration:.1f}s'})
             
+            # Send comprehensive completion data
             send_event('completion', {
                 'test_file': self.test_file_path,
                 'duration': duration,
                 'coverage': self.actual_coverage,
                 'test_count': self.unique_test_count,
-                'version': self.version
+                'version': self.version,
+                'passed': self.passed_tests,
+                'failed': self.failed_tests,
+                'error': getattr(self, 'error_tests', 0),
+                'skipped': getattr(self, 'skipped_tests', 0),
+                'spec_changed': spec_changed,
+                'contract_results': contract_results
             })
             
             print("\n" + "="*70)
             print("✅ POC COMPLETED")
             print(f"   Version: v{self.version}")
-            print(f"   Tests: {self.unique_test_count}")
-            print(f"   Passed: {self.passed_tests}, Failed: {self.failed_tests}")
+            print(f"   File: {self._get_test_filename()}")
+            print(f"   Tests: {self.unique_test_count} total")
+            print(f"   Results: ✅{self.passed_tests} ❌{self.failed_tests} ⚠️{getattr(self, 'error_tests', 0)} ⏭️{getattr(self, 'skipped_tests', 0)}")
             print(f"   Coverage: {self.actual_coverage}%")
+            print(f"   Duration: {duration:.1f}s")
             print("="*70 + "\n")
             
         except Exception as e:
@@ -397,9 +409,11 @@ Endpoints:
         """ENHANCED: Run tests with proper error handling and detailed capture"""
         print("\n🧪 Running tests...")
         
-        # Initialize
+        # Initialize counters
         self.passed_tests = 0
         self.failed_tests = 0
+        self.skipped_tests = 0
+        self.error_tests = 0
         self.test_details = []
         
         # First, verify API is accessible
@@ -408,19 +422,22 @@ Endpoints:
         
         if not api_available:
             print("   ⚠️  API not accessible - tests will fail")
-            # Create failure details for all tests
+            self.error_tests = self.unique_test_count
+            
+            # Create error details for all tests
             for i in range(self.unique_test_count):
                 self.test_details.append({
                     'name': f'test_{i+1}',
+                    'status': 'error',
                     'passed': False,
-                    'reason': 'API not running or not accessible on expected port'
+                    'reason': 'API not running or not accessible on expected port (check port 5000 vs 5001)'
                 })
-            
-            self.failed_tests = self.unique_test_count
             
             send_event('execute', {
                 'passed': 0,
-                'failed': self.unique_test_count,
+                'failed': 0,
+                'error': self.error_tests,
+                'skipped': 0,
                 'total': self.unique_test_count,
                 'details': self.test_details
             })
@@ -431,72 +448,88 @@ Endpoints:
         print("   ✅ API accessible, running tests...")
         
         try:
-            # Run pytest with detailed output
-            result = subprocess.run(
-                ['pytest', self.test_file_path, '-v', '--tb=short', '-s'],
-                capture_output=True,
-                text=True,
-                timeout=60,
-                cwd=os.path.dirname(os.path.abspath(__file__))
-            )
+            # Try running pytest with JSON report first (if plugin available)
+            json_report_path = 'test_report.json'
             
-            output = result.stdout + '\n' + result.stderr
+            # Check if pytest-json-report is available
+            json_available = self._check_pytest_json_plugin()
             
-            print("\n   📝 Pytest output preview:")
-            print("   " + "-" * 60)
-            for line in output.split('\n')[:10]:
-                if line.strip():
-                    print(f"   {line[:80]}")
-            print("   " + "-" * 60 + "\n")
+            if json_available:
+                result = subprocess.run([
+                    'pytest', self.test_file_path, 
+                    '--json-report', 
+                    '--json-report-file=' + json_report_path,
+                    '-v', '--tb=short'
+                ], capture_output=True, text=True, timeout=90)
+                
+                # Parse JSON report (most accurate)
+                if os.path.exists(json_report_path):
+                    if self._parse_json_report(json_report_path):
+                        print("   📊 Using JSON report for accurate results")
+                    else:
+                        # JSON parsing failed, fall back to text
+                        output = result.stdout + '\n' + result.stderr
+                        self._parse_pytest_output(output)
+                else:
+                    # No JSON file created, use text output
+                    output = result.stdout + '\n' + result.stderr
+                    self._parse_pytest_output(output)
+            else:
+                # No JSON plugin, use standard pytest
+                print("   📊 Using text output parsing (install pytest-json-report for better accuracy)")
+                result = subprocess.run([
+                    'pytest', self.test_file_path, '-v', '--tb=short'
+                ], capture_output=True, text=True, timeout=90)
+                
+                output = result.stdout + '\n' + result.stderr
+                self._parse_pytest_output(output)
             
-            # Parse output - IMPROVED LOGIC
-            self._parse_pytest_output(output)
+            # Ensure totals match
+            calculated_total = self.passed_tests + self.failed_tests + self.error_tests + self.skipped_tests
+            if calculated_total != self.unique_test_count:
+                print(f"   ⚠️  Count mismatch: calculated {calculated_total}, expected {self.unique_test_count}")
+                # Adjust for missing tests
+                missing = self.unique_test_count - calculated_total
+                if missing > 0:
+                    self.error_tests += missing
+                    for i in range(missing):
+                        self.test_details.append({
+                            'name': f'test_missing_{i+1}',
+                            'status': 'error',
+                            'passed': False,
+                            'reason': 'Test not found or could not be executed'
+                        })
             
-            # Verify we got results
-            if self.passed_tests == 0 and self.failed_tests == 0 and self.unique_test_count > 0:
-                print("   ⚠️  Parsing failed, analyzing raw output...")
-                self._fallback_parse(output)
+            print(f"   ✅ {self.passed_tests} passed, ❌ {self.failed_tests} failed, ⚠️ {self.error_tests} errors, ⏭️ {self.skipped_tests} skipped")
             
-            print(f"   {self.passed_tests}/{self.unique_test_count} passed, {self.failed_tests} failed")
-            
-            # Send to dashboard
+            # Send accurate results to dashboard
             send_event('execute', {
                 'passed': self.passed_tests,
                 'failed': self.failed_tests,
+                'error': self.error_tests,
+                'skipped': self.skipped_tests,
                 'total': self.unique_test_count,
                 'details': self.test_details
             })
             
-            # Print summary
+            # Print detailed summary
             if self.test_details:
-                print("\n   📋 Test Summary:")
-                for detail in self.test_details[:5]:
-                    status = "✅" if detail['passed'] else "❌"
-                    print(f"      {status} {detail['name']}: {detail['reason'][:60]}")
-                if len(self.test_details) > 5:
-                    print(f"      ... and {len(self.test_details) - 5} more")
+                print("\n   📋 Test Details:")
+                for detail in self.test_details[:8]:  # Show more details
+                    status_icon = {"passed": "✅", "failed": "❌", "error": "⚠️", "skipped": "⏭️"}.get(detail.get('status', 'failed'), "❌")
+                    print(f"      {status_icon} {detail['name']}: {detail['reason'][:80]}")
+                if len(self.test_details) > 8:
+                    print(f"      ... and {len(self.test_details) - 8} more")
             
         except subprocess.TimeoutExpired:
             print("   ⚠️  Test execution timeout")
+            self.error_tests = self.unique_test_count
             self._create_timeout_details()
-            
-            send_event('execute', {
-                'passed': 0,
-                'failed': self.unique_test_count,
-                'total': self.unique_test_count,
-                'details': self.test_details
-            })
             
         except Exception as e:
             print(f"   ❌ Test execution error: {e}")
+            self.error_tests = self.unique_test_count
             self._create_error_details(str(e))
-            
-            send_event('execute', {
-                'passed': 0,
-                'failed': self.unique_test_count,
-                'total': self.unique_test_count,
-                'details': self.test_details
-            })
 
     def _check_api_health(self):
         """Check if API is running and accessible"""
@@ -518,156 +551,288 @@ Endpoints:
             except:
                 return False
 
+    def _parse_json_report(self, json_path):
+        """Parse JSON report for accurate test results"""
+        try:
+            with open(json_path, 'r') as f:
+                report = json.load(f)
+            
+            # Get summary
+            summary = report.get('summary', {})
+            self.passed_tests = summary.get('passed', 0)
+            self.failed_tests = summary.get('failed', 0)
+            self.error_tests = summary.get('error', 0)
+            self.skipped_tests = summary.get('skipped', 0)
+            
+            # Get detailed test results
+            tests = report.get('tests', [])
+            for test in tests:
+                test_name = test.get('nodeid', '').split('::')[-1]
+                outcome = test.get('outcome', 'unknown')
+                
+                # Extract failure reason
+                reason = "Test completed"
+                if outcome == 'passed':
+                    reason = "All assertions passed successfully"
+                    status = 'passed'
+                elif outcome == 'failed':
+                    # Get detailed failure reason
+                    reason = "Test assertion failed"
+                    if 'longrepr' in test:
+                        longrepr = str(test['longrepr'])
+                        if 'AssertionError' in longrepr:
+                            reason = "AssertionError: Response did not match expected values"
+                        elif 'ConnectionError' in longrepr or 'Connection refused' in longrepr:
+                            reason = "ConnectionError: Cannot connect to API (check port configuration)"
+                        elif 'timeout' in longrepr.lower():
+                            reason = "TimeoutError: API request timed out"
+                        elif 'fixture' in longrepr and 'not found' in longrepr:
+                            reason = "FixtureError: Missing pytest fixture (e.g., 'session')"
+                        else:
+                            # Extract first meaningful error line
+                            lines = longrepr.split('\n')
+                            for line in lines:
+                                if 'assert' in line.lower() or 'error' in line.lower():
+                                    reason = line.strip()[:120]
+                                    break
+                    status = 'failed'
+                elif outcome == 'error':
+                    reason = "Test setup or execution error"
+                    if 'setup' in test and 'longrepr' in test['setup']:
+                        setup_error = str(test['setup']['longrepr'])
+                        if 'fixture' in setup_error and 'not found' in setup_error:
+                            reason = "Missing pytest fixture - check test function parameters"
+                        else:
+                            reason = f"Setup error: {setup_error[:100]}"
+                    status = 'error'
+                else:
+                    status = 'skipped'
+                    reason = "Test was skipped"
+                
+                self.test_details.append({
+                    'name': test_name,
+                    'status': status,
+                    'passed': outcome == 'passed',
+                    'reason': reason
+                })
+                
+        except Exception as e:
+            print(f"   ⚠️  JSON report parsing failed: {e}")
+            # Fallback to text parsing
+            return False
+        
+        return True
+
     def _parse_pytest_output(self, output):
-        """Parse pytest output for test results"""
+        """Parse pytest text output for test results (fallback method)"""
         lines = output.split('\n')
         
+        # Count results from summary line
+        for line in lines:
+            if 'failed' in line or 'passed' in line:
+                # Look for pattern like "5 failed, 1 passed in 2.34s"
+                import re
+                passed_match = re.search(r'(\d+)\s+passed', line)
+                failed_match = re.search(r'(\d+)\s+failed', line)
+                error_match = re.search(r'(\d+)\s+error', line)
+                skipped_match = re.search(r'(\d+)\s+skipped', line)
+                
+                if passed_match:
+                    self.passed_tests = int(passed_match.group(1))
+                if failed_match:
+                    self.failed_tests = int(failed_match.group(1))
+                if error_match:
+                    self.error_tests = int(error_match.group(1))
+                if skipped_match:
+                    self.skipped_tests = int(skipped_match.group(1))
+        
+        # Extract individual test results
         for i, line in enumerate(lines):
-            # Match: tests/test_file.py::test_name PASSED/FAILED
-            if '::test_' in line:
+            if '::test_' in line and ('PASSED' in line or 'FAILED' in line or 'ERROR' in line):
                 try:
                     # Extract test name
-                    if '::' in line:
-                        parts = line.split('::')
-                        test_part = parts[1] if len(parts) > 1 else parts[0]
-                        
-                        # Get test name (before space or bracket)
-                        test_name = test_part.split()[0] if ' ' in test_part else test_part
-                        test_name = test_name.split('(')[0]  # Remove parameters
-                        
-                        is_passed = 'PASSED' in line
-                        is_failed = 'FAILED' in line
-                        
-                        if is_passed:
-                            self.passed_tests += 1
-                            reason = "All assertions passed, API responded as expected"
-                            
-                            self.test_details.append({
-                                'name': test_name,
-                                'passed': True,
-                                'reason': reason
-                            })
-                            
-                        elif is_failed:
-                            self.failed_tests += 1
-                            
-                            # Extract failure reason from following lines
-                            reason = "Test assertion failed"
-                            for j in range(i + 1, min(i + 15, len(lines))):
-                                check_line = lines[j]
-                                
-                                # Look for assertion errors
-                                if 'AssertionError' in check_line:
-                                    reason = check_line.strip()[:150]
-                                    break
-                                elif 'assert' in check_line.lower() and ('==' in check_line or '!=' in check_line):
-                                    reason = check_line.strip()[:150]
-                                    break
-                                elif 'ConnectionError' in check_line or 'ConnectionRefusedError' in check_line:
-                                    reason = "Cannot connect to API - check if API is running on correct port"
-                                    break
-                                elif 'TimeoutError' in check_line or 'timeout' in check_line.lower():
-                                    reason = "API request timeout - API may be slow or unresponsive"
-                                    break
-                                elif 'Error:' in check_line or 'ERROR' in check_line:
-                                    reason = check_line.strip()[:150]
-                                    break
-                            
-                            self.test_details.append({
-                                'name': test_name,
-                                'passed': False,
-                                'reason': reason
-                            })
-                
+                    parts = line.split('::')
+                    test_name = parts[-1].split()[0] if parts else 'unknown_test'
+                    
+                    if 'PASSED' in line:
+                        status = 'passed'
+                        reason = "All assertions passed successfully"
+                    elif 'FAILED' in line:
+                        status = 'failed'
+                        reason = self._extract_failure_reason(lines, i)
+                    else:  # ERROR
+                        status = 'error'
+                        reason = self._extract_error_reason(lines, i)
+                    
+                    self.test_details.append({
+                        'name': test_name,
+                        'status': status,
+                        'passed': status == 'passed',
+                        'reason': reason
+                    })
+                    
                 except Exception as e:
                     print(f"   ⚠️  Parse error on line: {line[:50]}")
                     continue
 
-    def _fallback_parse(self, output):
-        """Fallback parsing when standard parsing fails"""
-        print("   Using fallback parsing...")
+    def _extract_failure_reason(self, lines, start_idx):
+        """Extract detailed failure reason from pytest output"""
+        reason = "Test assertion failed"
         
-        # Simple count
-        passed_count = output.count(' PASSED')
-        failed_count = output.count(' FAILED')
+        # Look ahead for error details
+        for j in range(start_idx + 1, min(start_idx + 15, len(lines))):
+            line = lines[j]
+            
+            if 'AssertionError' in line:
+                reason = line.strip()[:120]
+                break
+            elif 'ConnectionError' in line or 'ConnectionRefusedError' in line:
+                reason = "Cannot connect to API - check if API is running on correct port"
+                break
+            elif 'TimeoutError' in line or 'timeout' in line.lower():
+                reason = "API request timeout - API may be slow or unresponsive"
+                break
+            elif line.strip().startswith('assert '):
+                reason = f"Assertion failed: {line.strip()[:100]}"
+                break
+            elif 'Error:' in line:
+                reason = line.strip()[:120]
+                break
         
-        if passed_count > 0 or failed_count > 0:
-            self.passed_tests = passed_count
-            self.failed_tests = failed_count
-            
-            # Generate details
-            self.test_details = []
-            
-            for i in range(passed_count):
-                self.test_details.append({
-                    'name': f'test_passed_{i+1}',
-                    'passed': True,
-                    'reason': 'Test passed'
-                })
-            
-            for i in range(failed_count):
-                # Try to find failure reason in output
-                reason = "Test failed"
-                if 'ConnectionRefusedError' in output or 'Connection refused' in output:
-                    reason = "Cannot connect to API on specified port"
-                elif 'AssertionError' in output:
-                    reason = "Assertion failed - response did not match expectation"
-                elif 'timeout' in output.lower():
-                    reason = "Request timeout"
+        return reason
+
+    def _extract_error_reason(self, lines, start_idx):
+        """Extract error reason from pytest output"""
+        reason = "Test execution error"
+        
+        for j in range(start_idx + 1, min(start_idx + 10, len(lines))):
+            line = lines[j]
+            if 'fixture' in line and 'not found' in line:
+                reason = "Missing pytest fixture - check test function parameters"
+                break
+            elif 'ImportError' in line or 'ModuleNotFoundError' in line:
+                reason = "Import error - missing required module"
+                break
+            elif 'SyntaxError' in line:
+                reason = "Syntax error in test code"
+                break
+        
+        return reason
+
+    def _check_pytest_json_plugin(self):
+        """Check if pytest-json-report plugin is available"""
+        try:
+            result = subprocess.run(['pytest', '--help'], capture_output=True, text=True, timeout=10)
+            return '--json-report' in result.stdout
+        except:
+            return False
+
+    def _check_spec_changes(self):
+        """Check if OpenAPI spec has changed since last run"""
+        hash_file = os.path.join(self.output_dir, '.spec_hash')
+        
+        if os.path.exists(hash_file):
+            try:
+                with open(hash_file, 'r') as f:
+                    old_hash = f.read().strip()
                 
-                self.test_details.append({
-                    'name': f'test_failed_{i+1}',
-                    'passed': False,
-                    'reason': reason
-                })
+                if old_hash != self.spec_hash:
+                    print(f"\n⚠️  Spec change detected!")
+                    print(f"   Old: {old_hash[:16]}")
+                    print(f"   New: {self.spec_hash[:16]}")
+                    
+                    send_event('spec_change', {
+                        'old_hash': old_hash[:16],
+                        'new_hash': self.spec_hash[:16],
+                        'message': 'OpenAPI specification has changed - regenerating tests'
+                    })
+                    
+                    return True
+            except:
+                pass
+        
+        # Save current hash
+        with open(hash_file, 'w') as f:
+            f.write(self.spec_hash)
+        
+        return False
 
     def _create_timeout_details(self):
         """Create details for timeout scenario"""
-        self.failed_tests = self.unique_test_count
         self.test_details = []
         
         for i in range(self.unique_test_count):
             self.test_details.append({
-                'name': f'test_{i+1}',
+                'name': f'test_timeout_{i+1}',
+                'status': 'error',
                 'passed': False,
-                'reason': 'Test execution timeout - tests took too long to complete'
+                'reason': 'Test execution timeout - tests took too long to complete (>90s)'
             })
 
     def _create_error_details(self, error_msg):
         """Create details for error scenario"""
-        self.failed_tests = self.unique_test_count
         self.test_details = []
         
         for i in range(self.unique_test_count):
             self.test_details.append({
-                'name': f'test_{i+1}',
+                'name': f'test_error_{i+1}',
+                'status': 'error',
                 'passed': False,
                 'reason': f'Test execution error: {error_msg[:100]}'
             })
     
     def run_contract_tests(self, parsed_spec: dict):
-        """Contract tests"""
-        print("\n🔍 Contracts...")
+        """Contract tests - aligned with test execution counts"""
+        print("\n🔍 Contract Testing...")
         
         send_event('contract', {
             'total': self.endpoint_count,
             'passed': 0,
             'failed': 0,
-            'status': 'running'
+            'status': 'running',
+            'message': 'Testing API contracts...'
         })
         
-        tester = ContractTester(parsed_spec['base_url'])
-        results = tester.test_contracts(parsed_spec['endpoints'])
-        summary = tester.get_summary()
-        
-        print(f"   {summary['passed']}/{summary['total']} passed")
-        
-        send_event('contract', {
-            'total': summary['total'],
-            'passed': summary['passed'],
-            'failed': summary['failed'],
-            'status': 'completed'
-        })
+        try:
+            tester = ContractTester(parsed_spec['base_url'])
+            results = tester.test_contracts(parsed_spec['endpoints'])
+            summary = tester.get_summary()
+            
+            print(f"   Contract Results: {summary['passed']}/{summary['total']} endpoints passed")
+            print(f"   Test Execution:   {self.passed_tests}/{self.unique_test_count} tests passed")
+            
+            # Detailed contract results
+            contract_details = []
+            for result in results:
+                contract_details.append({
+                    'endpoint': result['endpoint'],
+                    'passed': result['passed'],
+                    'status_code': result.get('status_code'),
+                    'error': result.get('error', 'OK' if result['passed'] else 'Failed')
+                })
+            
+            send_event('contract', {
+                'total': summary['total'],
+                'passed': summary['passed'],
+                'failed': summary['failed'],
+                'status': 'completed',
+                'details': contract_details,
+                'pass_rate': summary['pass_rate']
+            })
+            
+            return summary
+            
+        except Exception as e:
+            print(f"   ❌ Contract testing error: {e}")
+            send_event('contract', {
+                'total': self.endpoint_count,
+                'passed': 0,
+                'failed': self.endpoint_count,
+                'status': 'error',
+                'error': str(e)
+            })
+            
+            return {'total': self.endpoint_count, 'passed': 0, 'failed': self.endpoint_count}
     
     def calculate_coverage(self):
         """Coverage"""
@@ -746,14 +911,25 @@ Endpoints:
         send_event('comparison', comparison)
     
     def git_commit_and_push(self):
-        """Git"""
-        print("\n📝 Git...")
+        """Git commit and push with CI/CD integration"""
+        print("\n📝 Git & CI/CD...")
         
         try:
+            # Add files
             subprocess.run(['git', 'add', self.test_file_path], check=True)
+            subprocess.run(['git', 'add', 'test_report.json'], check=False)  # Optional file
+            subprocess.run(['git', 'add', 'htmlcov/'], check=False)  # Coverage reports
             
+            # Create detailed commit message
             timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            commit_msg = f"🤖 v{self.version} - {timestamp}"
+            test_summary = f"✅{self.passed_tests} ❌{self.failed_tests} ⚠️{getattr(self, 'error_tests', 0)}"
+            commit_msg = f"""🤖 Auto-generated tests v{self.version}
+
+📊 Test Results: {test_summary} ({self.unique_test_count} total)
+📈 Coverage: {self.actual_coverage}%
+📄 File: {self._get_test_filename()}
+🔖 Spec Hash: {self.spec_hash[:12]}
+⏱️  Generated: {timestamp}"""
             
             subprocess.run(
                 ['git', 'commit', '-m', commit_msg, '--no-verify'],
@@ -767,14 +943,17 @@ Endpoints:
                 text=True
             )
             commit_hash = result.stdout.strip()
-            print(f"   ✓ {commit_hash}")
+            print(f"   ✓ Committed: {commit_hash}")
             
             send_event('git', {
                 'committed': True,
                 'pushed': False,
-                'message': f'v{self.version} ({commit_hash})'
+                'hash': commit_hash,
+                'message': f'v{self.version} tests committed',
+                'test_summary': test_summary
             })
             
+            # Push to remote
             result = subprocess.run(
                 ['git', 'branch', '--show-current'],
                 capture_output=True,
@@ -785,6 +964,7 @@ Endpoints:
             result = subprocess.run(['git', 'remote'], capture_output=True, text=True)
             
             if 'origin' in result.stdout:
+                print(f"   📤 Pushing to {branch}...")
                 push_result = subprocess.run(
                     ['git', 'push', 'origin', branch],
                     capture_output=True,
@@ -792,20 +972,51 @@ Endpoints:
                 )
                 
                 if push_result.returncode == 0:
+                    print("   ✓ Pushed successfully")
+                    
                     send_event('git', {
                         'committed': True,
                         'pushed': True,
-                        'message': f'v{self.version} pushed'
+                        'branch': branch,
+                        'hash': commit_hash,
+                        'message': f'v{self.version} pushed to {branch}'
                     })
                     
+                    # Simulate CI/CD trigger
                     send_event('cicd', {
                         'status': 'triggered',
-                        'message': 'CI/CD triggered',
-                        'build': 'View on GitHub'
+                        'pipeline': 'GitHub Actions',
+                        'branch': branch,
+                        'commit': commit_hash,
+                        'workflow': 'test-automation.yml',
+                        'steps': [
+                            'Checkout code',
+                            'Setup Python',
+                            'Install dependencies',
+                            'Run generated tests',
+                            'Generate coverage report',
+                            'Upload artifacts',
+                            'Deploy to staging'
+                        ],
+                        'estimated_time': '3-5 minutes',
+                        'artifacts': [
+                            'test_report.json',
+                            'htmlcov/',
+                            f'{self._get_test_filename()}'
+                        ]
                     })
+                else:
+                    print(f"   ⚠️  Push failed: {push_result.stderr.decode()}")
+            else:
+                print("   ⚠️  No remote repository configured")
         
+        except subprocess.CalledProcessError as e:
+            if 'nothing to commit' in str(e):
+                print("   ℹ️  No changes to commit")
+            else:
+                print(f"   ❌ Git error: {e}")
         except Exception as e:
-            print(f"   ❌ {e}")
+            print(f"   ❌ Git error: {e}")
 
 
 def main():

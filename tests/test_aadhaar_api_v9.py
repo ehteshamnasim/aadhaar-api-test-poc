@@ -17,7 +17,7 @@
 
 📄 Spec File:          specs/aadhaar-api.yaml
 🌐 Total Endpoints:    2
-🔗 Base URL:           http://localhost:5000/api/v1
+🔗 Base URL:           http://localhost:5001/api/v1
 
 Endpoints Covered:
   1. POST   /aadhaar/verify
@@ -46,7 +46,7 @@ Endpoints Covered:
 - This file is AUTO-GENERATED - Manual edits will be preserved in version history
 - Each test run creates a new versioned file (test_aadhaar_api_v2.py, v3.py, etc.)
 - Tests validate against API spec: aadhaar-api.yaml
-- Dummy API must be running on: http://localhost:5000/api/v1
+- Dummy API must be running on: http://localhost:5001/api/v1
 
 ════════════════════════════════════════════════════════════════════════════════
 """
@@ -55,46 +55,48 @@ Endpoints Covered:
 import pytest
 import requests
 
-def test_demographics_consent_denied(session):
+BASE_URL = "http://localhost:5001/api/v1"
+
+def test_demographics_consent_denied():
     """
     Test retrieval of demographic details with consent denied.
     """
-    response = session.post(f"{BASE_URL}/aadhaar/demographics", json={"aadhaar_number": "123456789012", "consent": False})
+    response = requests.post(f"{BASE_URL}/aadhaar/demographics", json={"aadhaar_number": "123456789012", "consent": False})
     assert response.status_code == 403
     assert "error" in response.json()
 
-def test_demographics_missing_field(session):
+def test_demographics_missing_field():
     """
     Test retrieval of demographic details with missing required field.
     """
-    response = session.post(f"{BASE_URL}/aadhaar/demographics", json={"aadhaar_number": "123456789012"})
+    response = requests.post(f"{BASE_URL}/aadhaar/demographics", json={"aadhaar_number": "123456789012"})
     assert response.status_code == 400
     assert "error" in response.json()
 
 
-def test_demographics_success(session):
+def test_demographics_success():
     """
     Test successful retrieval of demographic details with valid payload.
     """
-    response = session.post(f"{BASE_URL}/aadhaar/demographics", json={"aadhaar_number": "123456789012", "consent": True})
+    response = requests.post(f"{BASE_URL}/aadhaar/demographics", json={"aadhaar_number": "123456789012", "consent": True})
     assert response.status_code == 200
     assert isinstance(response.json(), dict)
 
 
-def test_verify_aadhaar_missing_field(session):
+def test_verify_aadhaar_missing_field():
     """
     Test Aadhaar verification with missing required field.
     """
-    response = session.post(f"{BASE_URL}/aadhaar/verify", json={})
+    response = requests.post(f"{BASE_URL}/aadhaar/verify", json={})
     assert response.status_code == 400
     assert "error" in response.json()
 
 
-def test_verify_aadhaar_success(session):
+def test_verify_aadhaar_success():
     """
     Test successful Aadhaar verification with valid payload.
     """
-    response = session.post(f"{BASE_URL}/aadhaar/verify", json={"aadhaar_number": "123456789012"})
+    response = requests.post(f"{BASE_URL}/aadhaar/verify", json={"aadhaar_number": "123456789012"})
     assert response.status_code == 200
     assert isinstance(response.json(), dict)
 

@@ -1,7 +1,7 @@
 import pytest
 import requests
 
-BASE_URL = "http://localhost:5000/api/v1"
+BASE_URL = "http://localhost:5001/api/v1"
 
 @pytest.fixture
 def valid_aadhaar_number():
