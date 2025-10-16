@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 AI-Powered API Test Automation - SIMPLIFIED VERSION
+With: Detailed failure reasons + Git push fix
 """
 
 import os
@@ -100,7 +101,7 @@ class POCOrchestrator:
             
             # Git
             print("\n📝 Git...")
-            self.git_commit()
+            self.git_commit_and_push()
             
             self.print_summary()
             
@@ -248,7 +249,7 @@ def check_api():
         print(f"   Saved: {filename} ({self.unique_test_count} tests)")
     
     def run_tests(self):
-        """Execute tests - SIMPLIFIED"""
+        """Execute tests with DETAILED FAILURE REASONS"""
         print(f"   Running: pytest {self.test_file_path}")
         
         # Verify file exists
@@ -271,10 +272,10 @@ def check_api():
             send_event('execute', {'passed': 0, 'failed': self.unique_test_count, 'total': self.unique_test_count, 'details': []})
             return
         
-        # Run pytest
+        # Run pytest with DETAILED OUTPUT
         try:
             result = subprocess.run(
-                ['pytest', self.test_file_path, '-v'],
+                ['pytest', self.test_file_path, '-v', '--tb=short'],
                 capture_output=True,
                 text=True,
                 timeout=60
@@ -282,32 +283,45 @@ def check_api():
             
             output = result.stdout + result.stderr
             
-            # Show output
-            print("\n   Output:")
-            for line in output.split('\n')[:15]:
-                if line.strip():
-                    print(f"   {line}")
-            
-            # Parse results
-            self.passed_tests = output.count(' PASSED')
-            self.failed_tests = output.count(' FAILED')
-            
-            print(f"\n   Results: {self.passed_tests} passed, {self.failed_tests} failed")
-            
-            # Build details
+            # Parse results with FAILURE REASONS
+            self.passed_tests = 0
+            self.failed_tests = 0
             details = []
-            for line in output.split('\n'):
+            
+            lines = output.split('\n')
+            
+            for i, line in enumerate(lines):
                 if '::test_' in line and (' PASSED' in line or ' FAILED' in line):
                     try:
+                        # Extract test name
                         test_name = line.split('::')[1].split()[0]
                         passed = 'PASSED' in line
+                        
+                        if passed:
+                            self.passed_tests += 1
+                            reason = "✅ All assertions passed, response matched expectations"
+                        else:
+                            self.failed_tests += 1
+                            # EXTRACT FAILURE REASON
+                            reason = self._extract_failure_reason(lines, i)
+                        
                         details.append({
                             'name': test_name,
                             'passed': passed,
-                            'reason': 'Test passed' if passed else 'Test failed'
+                            'reason': reason
                         })
-                    except:
+                        
+                        # Print to console
+                        icon = "✅" if passed else "❌"
+                        print(f"   {icon} {test_name}")
+                        if not passed:
+                            print(f"      Reason: {reason}")
+                    
+                    except Exception as e:
+                        print(f"   ⚠️ Parse error: {e}")
                         pass
+            
+            print(f"\n   Results: {self.passed_tests} passed, {self.failed_tests} failed")
             
             # Send to dashboard
             send_event('execute', {
@@ -323,6 +337,51 @@ def check_api():
         except Exception as e:
             print(f"   ❌ Error: {e}")
             send_event('execute', {'passed': 0, 'failed': self.unique_test_count, 'total': self.unique_test_count, 'details': []})
+    
+    def _extract_failure_reason(self, lines, start_index):
+        """Extract detailed failure reason from pytest output"""
+        reason = "Test failed"
+        
+        # Look ahead for error details (next 20 lines)
+        for i in range(start_index + 1, min(start_index + 20, len(lines))):
+            line = lines[i]
+            
+            # Connection errors
+            if 'ConnectionError' in line or 'ConnectionRefusedError' in line:
+                return "❌ Cannot connect to API - verify API is running on correct port"
+            
+            # Timeout errors
+            if 'TimeoutError' in line or 'timeout' in line.lower():
+                return "❌ API request timeout - API not responding or too slow"
+            
+            # Assertion errors with details
+            if 'AssertionError' in line:
+                # Try to find the actual assertion
+                for j in range(i, min(i + 5, len(lines))):
+                    if 'assert' in lines[j].lower():
+                        assertion = lines[j].strip()
+                        # Clean up
+                        if 'assert' in assertion:
+                            return f"❌ {assertion[:120]}"
+                return "❌ Assertion failed - response did not match expectation"
+            
+            # Status code mismatches
+            if 'status_code' in line.lower() and ('==' in line or '!=' in line):
+                return f"❌ Status code mismatch: {line.strip()[:120]}"
+            
+            # Response content issues
+            if 'response.json()' in line.lower() or 'JSONDecodeError' in line:
+                return "❌ Invalid JSON response from API"
+            
+            # Schema validation
+            if 'KeyError' in line:
+                return f"❌ Missing expected field in response: {line.strip()[:120]}"
+            
+            # General errors
+            if 'Error:' in line:
+                return f"❌ {line.strip()[:120]}"
+        
+        return reason
     
     def run_contract_tests(self, parsed_spec):
         send_event('contract', {'total': self.endpoint_count, 'passed': 0, 'failed': 0, 'status': 'running'})
@@ -372,42 +431,122 @@ def check_api():
             print(f"   Error: {e}")
             send_event('coverage', {'percentage': 0})
     
-    def git_commit(self):
+    def git_commit_and_push(self):
+        """Git commit AND push with proper status updates"""
         try:
+            # Check for changes
             result = subprocess.run(['git', 'status', '--porcelain', self.test_file_path], 
                                   capture_output=True, text=True)
             
             if not result.stdout.strip():
-                print("   No changes")
+                print("   ℹ️  No changes to commit")
+                send_event('git', {
+                    'committed': False,
+                    'pushed': False,
+                    'message': 'No changes'
+                })
                 return
             
+            # Stage file
             subprocess.run(['git', 'add', self.test_file_path], check=True)
+            print("   ✅ Staged changes")
             
+            # Commit
             timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            subprocess.run(['git', 'commit', '-m', f'🤖 v{self.version} - {timestamp}', '--no-verify'],
-                         capture_output=True, check=True)
+            commit_msg = f'🤖 AI tests v{self.version} - {timestamp}'
             
+            result = subprocess.run(
+                ['git', 'commit', '-m', commit_msg, '--no-verify'],
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            
+            # Get commit hash
             result = subprocess.run(['git', 'rev-parse', '--short', 'HEAD'],
                                   capture_output=True, text=True)
             commit_hash = result.stdout.strip()
             
-            print(f"   Committed: {commit_hash}")
+            print(f"   ✅ Committed: {commit_hash}")
             
-            send_event('git', {'committed': True, 'pushed': False, 'message': f'v{self.version}'})
+            # Update dashboard - commit done
+            send_event('git', {
+                'committed': True,
+                'pushed': False,
+                'message': f'Committed v{self.version} ({commit_hash})'
+            })
             
-            # Try push
+            # Get current branch
+            result = subprocess.run(['git', 'branch', '--show-current'],
+                                  capture_output=True, text=True)
+            branch = result.stdout.strip() or 'main'
+            
+            # Check if remote exists
             result = subprocess.run(['git', 'remote'], capture_output=True, text=True)
-            if 'origin' in result.stdout:
-                result = subprocess.run(['git', 'branch', '--show-current'], capture_output=True, text=True)
-                branch = result.stdout.strip() or 'main'
+            
+            if 'origin' not in result.stdout:
+                print("   ℹ️  No remote repository configured")
+                send_event('git', {
+                    'committed': True,
+                    'pushed': False,
+                    'message': f'Committed v{self.version} - No remote configured'
+                })
+                return
+            
+            # Push to remote
+            print(f"   🚀 Pushing to origin/{branch}...")
+            
+            push_result = subprocess.run(
+                ['git', 'push', 'origin', branch],
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            
+            if push_result.returncode == 0:
+                print(f"   ✅ Pushed to origin/{branch}")
                 
-                subprocess.run(['git', 'push', 'origin', branch], capture_output=True, timeout=30)
-                print(f"   Pushed to {branch}")
+                send_event('git', {
+                    'committed': True,
+                    'pushed': True,
+                    'message': f'v{self.version} pushed to {branch}'
+                })
                 
-                send_event('cicd', {'status': 'triggered', 'message': 'CI/CD triggered', 'build': 'GitHub'})
+                # Trigger CI/CD notification
+                send_event('cicd', {
+                    'status': 'triggered',
+                    'message': 'CI/CD pipeline triggered on GitHub',
+                    'build': 'View on GitHub Actions'
+                })
+            else:
+                print(f"   ⚠️  Push failed: {push_result.stderr}")
+                send_event('git', {
+                    'committed': True,
+                    'pushed': False,
+                    'message': f'Committed but push failed: {push_result.stderr[:50]}'
+                })
         
+        except subprocess.CalledProcessError as e:
+            print(f"   ❌ Git command failed: {e}")
+            send_event('git', {
+                'committed': False,
+                'pushed': False,
+                'message': f'Git error: {str(e)[:50]}'
+            })
+        except subprocess.TimeoutExpired:
+            print(f"   ❌ Push timeout (network issue?)")
+            send_event('git', {
+                'committed': True,
+                'pushed': False,
+                'message': 'Push timeout - check network'
+            })
         except Exception as e:
-            print(f"   Git error: {e}")
+            print(f"   ❌ Unexpected error: {e}")
+            send_event('git', {
+                'committed': False,
+                'pushed': False,
+                'message': f'Error: {str(e)[:50]}'
+            })
     
     def print_summary(self):
         duration = (datetime.now() - self.start_time).total_seconds()
