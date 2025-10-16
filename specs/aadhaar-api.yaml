@@ -20,7 +20,7 @@ paths:
               type: object
               properties:
                 aadhaar_number:
-                  type: string
+                  type: object
                   pattern: '^[1-9]{12}$'
                   example: "123456789012"
               required:
