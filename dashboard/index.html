@@ -9,254 +9,277 @@
 <body>
     <div class="container">
         <header>
-            <h1>AI-Powered API Test Automation</h1>
-            <p>Real-time test generation, execution, and code coverage analysis</p>
+            <div class="header-content">
+                <div class="header-left">
+                    <h1>API Test Automation</h1>
+                    <p>Real-time test generation, execution, and code coverage analysis</p>
+                </div>
+                <div class="header-right">
+                    <div class="status-indicator">
+                        <span class="status-dot"></span>
+                        <span id="status">Initializing...</span>
+                    </div>
+                    <span id="timestamp" class="timestamp">-</span>
+                    <button id="reset-btn" class="reset-button" onclick="resetDashboard()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                        </svg>
+                        Reset
+                    </button>
+                </div>
+            </div>
         </header>
 
-        <div class="status-bar">
-            <div class="status-item">
-                <span class="status-label">Status:</span>
-                <span id="status" class="status-value">Initializing...</span>
-            </div>
-            <div class="status-item">
-                <span class="status-label">Current Time:</span>
-                <span id="timestamp" class="status-value">-</span>
-            </div>
-            <div class="status-item">
-                <button id="reset-btn" class="reset-button" onclick="resetDashboard()">Reset Dashboard</button>
-            </div>
-        </div>
-
-        <!-- Main Layout: Left (Cards) + Right (Activity Log + Test Details) -->
         <div class="main-layout">
-            <!-- Left Side: Card Grid -->
+            <!-- Left Side: Metrics Grid -->
             <div class="left-panel">
-                <div class="grid">
+                <div class="metrics-grid">
                     <!-- API Specification -->
-                    <div class="card">
-                        <div class="card-header">
-                            <h2>API Specification</h2>
+                    <div class="metric-card">
+                        <div class="metric-header">
+                            <h3>API Specification</h3>
+                            <span id="parse-status" class="status-badge">Pending</span>
                         </div>
-                        <div class="card-body">
-                            <div class="stat">
-                                <span class="stat-label">File:</span>
-                                <span id="spec-file">-</span>
+                        <div class="metric-body">
+                            <div class="metric-row">
+                                <span class="metric-label">File</span>
+                                <span id="spec-file" class="metric-value">-</span>
                             </div>
-                            <div class="stat">
-                                <span class="stat-label">Status:</span>
-                                <span id="parse-status" class="badge">Pending</span>
-                            </div>
-                            <div class="stat">
-                                <span class="stat-label">Endpoints:</span>
-                                <span id="endpoint-count">0</span>
+                            <div class="metric-row">
+                                <span class="metric-label">Endpoints</span>
+                                <span id="endpoint-count" class="metric-value accent">0</span>
                             </div>
                         </div>
                     </div>
 
                     <!-- Test Generation -->
-                    <div class="card">
-                        <div class="card-header">
-                            <h2>Test Generation</h2>
+                    <div class="metric-card">
+                        <div class="metric-header">
+                            <h3>Test Generation</h3>
+                            <span id="gen-status" class="status-badge">Pending</span>
                         </div>
-                        <div class="card-body">
-                            <div class="progress-bar">
-                                <div id="gen-progress" class="progress-fill" style="width: 0%"></div>
+                        <div class="metric-body">
+                            <div class="progress-container">
+                                <div id="gen-progress" class="progress-bar" style="width: 0%"></div>
                             </div>
-                            <div class="stat">
-                                <span class="stat-label">Status:</span>
-                                <span id="gen-status" class="badge">Pending</span>
-                            </div>
-                            <div class="stat">
-                                <span class="stat-label">Tests Generated:</span>
-                                <span id="tests-generated" class="text-primary">0</span>
+                            <div class="metric-row">
+                                <span class="metric-label">Generated</span>
+                                <span id="tests-generated" class="metric-value accent">0</span>
                             </div>
                         </div>
                     </div>
 
                     <!-- Code Validation -->
-                    <div class="card">
-                        <div class="card-header">
-                            <h2>Code Validation</h2>
+                    <div class="metric-card">
+                        <div class="metric-header">
+                            <h3>Code Validation</h3>
+                            <span id="validation-status" class="status-badge">Pending</span>
                         </div>
-                        <div class="card-body">
-                            <div class="stat">
-                                <span class="stat-label">Syntax Check:</span>
-                                <span id="syntax-check" class="badge">Pending</span>
-                            </div>
-                            <div class="stat">
-                                <span class="stat-label">Import Check:</span>
-                                <span id="import-check" class="badge">Pending</span>
-                            </div>
-                            <div class="stat">
-                                <span class="stat-label">Overall:</span>
-                                <span id="validation-status" class="badge">Pending</span>
+                        <div class="metric-body">
+                            <div class="validation-checks">
+                                <div class="check-item">
+                                    <span>Syntax</span>
+                                    <span id="syntax-check" class="check-status">-</span>
+                                </div>
+                                <div class="check-item">
+                                    <span>Imports</span>
+                                    <span id="import-check" class="check-status">-</span>
+                                </div>
                             </div>
                         </div>
                     </div>
 
                     <!-- Test Execution -->
-                    <div class="card">
-                        <div class="card-header">
-                            <h2>Test Execution</h2>
+                    <div class="metric-card">
+                        <div class="metric-header">
+                            <h3>Test Execution</h3>
+                            <div class="test-stats">
+                                <span class="test-stat success"><span id="tests-passed">0</span> ✓</span>
+                                <span class="test-stat error"><span id="tests-failed">0</span> ✗</span>
+                            </div>
                         </div>
-                        <div class="card-body">
-                            <div class="stat">
-                                <span class="stat-label">Passed:</span>
-                                <span id="tests-passed" class="text-success">0</span>
-                            </div>
-                            <div class="stat">
-                                <span class="stat-label">Failed:</span>
-                                <span id="tests-failed" class="text-danger">0</span>
-                            </div>
-                            <div class="stat">
-                                <span class="stat-label">Total:</span>
-                                <span id="tests-total">0</span>
+                        <div class="metric-body">
+                            <div class="metric-row">
+                                <span class="metric-label">Total Tests</span>
+                                <span id="tests-total" class="metric-value">0</span>
                             </div>
                         </div>
                     </div>
 
                     <!-- Contract Testing -->
-                    <div class="card">
-                        <div class="card-header">
-                            <h2>Contract Testing</h2>
+                    <div class="metric-card">
+                        <div class="metric-header">
+                            <h3>Contract Testing</h3>
                         </div>
-                        <div class="card-body">
-                            <div class="stat">
-                                <span class="stat-label">Tested:</span>
-                                <span id="contracts-tested">0</span>
-                            </div>
-                            <div class="stat">
-                                <span class="stat-label">Passed:</span>
-                                <span id="contracts-passed" class="text-success">0</span>
-                            </div>
-                            <div class="stat">
-                                <span class="stat-label">Failed:</span>
-                                <span id="contracts-failed" class="text-danger">0</span>
+                        <div class="metric-body">
+                            <div class="metric-stats-row">
+                                <div class="stat-item">
+                                    <span class="stat-number" id="contracts-tested">0</span>
+                                    <span class="stat-label">Tested</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-number success" id="contracts-passed">0</span>
+                                    <span class="stat-label">Passed</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-number error" id="contracts-failed">0</span>
+                                    <span class="stat-label">Failed</span>
+                                </div>
                             </div>
                         </div>
                     </div>
 
                     <!-- Code Coverage -->
-                    <div class="card">
-                        <div class="card-header">
-                            <h2>Code Coverage</h2>
+                    <div class="metric-card">
+                        <div class="metric-header">
+                            <h3>Code Coverage</h3>
                         </div>
-                        <div class="card-body">
-                            <div class="coverage-circle">
-                                <svg width="120" height="120">
-                                    <circle cx="60" cy="60" r="50" fill="none" stroke="#e0e0e0" stroke-width="10"/>
-                                    <circle id="coverage-circle" cx="60" cy="60" r="50" fill="none" 
-                                            stroke="#667eea" stroke-width="10" 
-                                            stroke-dasharray="314" stroke-dashoffset="314"
-                                            transform="rotate(-90 60 60)"/>
-                                    <text id="coverage-text" x="60" y="70" text-anchor="middle" 
-                                          font-size="24" font-weight="bold" fill="#333">0%</text>
+                        <div class="metric-body">
+                            <div class="coverage-visual">
+                                <svg width="80" height="80" class="coverage-ring">
+                                    <circle cx="40" cy="40" r="35" fill="none" stroke="#f5f5f5" stroke-width="8"/>
+                                    <circle id="coverage-circle" cx="40" cy="40" r="35" fill="none" 
+                                            stroke="#f44d30" stroke-width="8" 
+                                            stroke-dasharray="220" stroke-dashoffset="220"
+                                            transform="rotate(-90 40 40)"/>
                                 </svg>
+                                <div class="coverage-text" id="coverage-text">0%</div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Git Operations -->
-                    <div class="card">
-                        <div class="card-header">
-                            <h2>Version Control</h2>
+                    <!-- Version Control -->
+                    <div class="metric-card">
+                        <div class="metric-header">
+                            <h3>Version Control</h3>
                         </div>
-                        <div class="card-body">
-                            <div class="stat">
-                                <span class="stat-label">Repository:</span>
-                                <span id="git-repo">-</span>
-                            </div>
-                            <div class="stat">
-                                <span class="stat-label">Commit:</span>
-                                <span id="git-commit" class="badge">Pending</span>
-                            </div>
-                            <div class="stat">
-                                <span class="stat-label">Push:</span>
-                                <span id="git-push" class="badge">Pending</span>
+                        <div class="metric-body">
+                            <div class="vc-status">
+                                <div class="vc-item">
+                                    <span>Repository</span>
+                                    <span id="git-repo" class="vc-value">-</span>
+                                </div>
+                                <div class="vc-item">
+                                    <span>Commit</span>
+                                    <span id="git-commit" class="vc-badge">Pending</span>
+                                </div>
+                                <div class="vc-item">
+                                    <span>Push</span>
+                                    <span id="git-push" class="vc-badge">Pending</span>
+                                </div>
                             </div>
                         </div>
                     </div>
 
                     <!-- CI/CD Pipeline -->
-                    <div class="card">
-                        <div class="card-header">
-                            <h2>CI/CD Pipeline</h2>
+                    <div class="metric-card">
+                        <div class="metric-header">
+                            <h3>CI/CD Pipeline</h3>
+                            <span id="cicd-status" class="status-badge">Not Started</span>
                         </div>
-                        <div class="card-body">
-                            <div class="stat">
-                                <span class="stat-label">Status:</span>
-                                <span id="cicd-status" class="badge">Not Started</span>
-                            </div>
-                            <div class="stat">
-                                <span class="stat-label">Build:</span>
-                                <span id="build-status">-</span>
+                        <div class="metric-body">
+                            <div class="metric-row">
+                                <span class="metric-label">Build</span>
+                                <span id="build-status" class="metric-value">-</span>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Action Buttons -->
-                <div class="actions">
-                    <a href="/coverage-report" target="_blank" id="coverage-btn" class="button button-primary" style="display: none;">View Coverage Report</a>
-                    <a href="/generated-tests" id="tests-btn" class="button button-secondary" style="display: none;" target="_blank">View Generated Tests</a>
+                <div class="action-buttons">
+                    <a href="/coverage-report" target="_blank" id="coverage-btn" class="btn btn-primary" style="display: none;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <line x1="16" y1="13" x2="8" y2="13"/>
+                            <line x1="16" y1="17" x2="8" y2="17"/>
+                            <polyline points="10 9 9 9 8 9"/>
+                        </svg>
+                        Coverage Report
+                    </a>
+                    <a href="/generated-tests" id="tests-btn" class="btn btn-secondary" style="display: none;" target="_blank">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                            <polyline points="22 4 12 14.01 9 11.01"/>
+                        </svg>
+                        View Tests
+                    </a>
                 </div>
 
                 <!-- Comparison Section -->
                 <div id="comparison-section" class="comparison-section" style="display: none;">
-                    <h2>Manual vs AI Automation</h2>
+                    <div class="section-header">
+                        <h3>Manual vs AI Automation</h3>
+                    </div>
                     <div class="comparison-grid">
                         <div class="comparison-card">
-                            <h3>Manual Approach</h3>
-                            <div class="metric">
-                                <span class="metric-label">Estimated Effort:</span>
-                                <span id="before-effort" class="metric-value">-</span>
+                            <div class="comparison-title">Manual Approach</div>
+                            <div class="comparison-metric">
+                                <span>Effort</span>
+                                <span id="before-effort" class="comparison-value">-</span>
                             </div>
-                            <div class="metric">
-                                <span class="metric-label">Test Cases:</span>
-                                <span id="before-tests" class="metric-value">-</span>
+                            <div class="comparison-metric">
+                                <span>Test Cases</span>
+                                <span id="before-tests" class="comparison-value">-</span>
                             </div>
-                            <div class="metric">
-                                <span class="metric-label">Coverage:</span>
-                                <span id="before-coverage" class="metric-value">-</span>
+                            <div class="comparison-metric">
+                                <span>Coverage</span>
+                                <span id="before-coverage" class="comparison-value">-</span>
                             </div>
                         </div>
                         <div class="comparison-card highlight">
-                            <h3>AI Automation</h3>
-                            <div class="metric">
-                                <span class="metric-label">Time Taken:</span>
-                                <span id="after-time" class="metric-value">-</span>
+                            <div class="comparison-title">AI Automation</div>
+                            <div class="comparison-metric">
+                                <span>Time</span>
+                                <span id="after-time" class="comparison-value accent">-</span>
                             </div>
-                            <div class="metric">
-                                <span class="metric-label">Test Cases:</span>
-                                <span id="after-tests" class="metric-value">-</span>
+                            <div class="comparison-metric">
+                                <span>Test Cases</span>
+                                <span id="after-tests" class="comparison-value accent">-</span>
                             </div>
-                            <div class="metric">
-                                <span class="metric-label">Lines of Code:</span>
-                                <span id="after-lines" class="metric-value">-</span>
+                            <div class="comparison-metric">
+                                <span>Lines of Code</span>
+                                <span id="after-lines" class="comparison-value accent">-</span>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Right Side: Test Details (30%) + Activity Log (70%) -->
+            <!-- Right Side: Activity & Results -->
             <div class="right-panel">
-                    <div class="activity-log-panel">
-                    <h3>Activity Log</h3>
-                    <div id="log" class="log-container">
-                        <!-- Logs will be added here dynamically -->
+                <!-- Test Results Panel -->
+                <div class="panel test-results-panel">
+                    <div class="panel-header">
+                        <h3>Test Results</h3>
+                        <span class="panel-badge">Real-time</span>
                     </div>
-                </div>
-                <!-- Test Details Section (30%) -->
-                <div class="test-details-panel">
-                    <h3>Test Results</h3>
-                    <div id="test-details-list" class="test-details-list">
-                        <div class="no-data">No test results yet</div>
+                    <div class="panel-body">
+                        <div id="test-details-list" class="test-results-list">
+                            <div class="empty-state">
+                                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2">
+                                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                                    <polyline points="22 4 12 14.01 9 11.01"/>
+                                </svg>
+                                <p>No test results yet</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Activity Log Section (70%) -->
-            
+                <!-- Activity Log Panel -->
+                <div class="panel activity-log-panel">
+                    <div class="panel-header">
+                        <h3>Activity Log</h3>
+                        <span class="panel-badge">Live</span>
+                    </div>
+                    <div class="panel-body">
+                        <div id="log" class="activity-log-list">
+                            <!-- Logs will be added here dynamically -->
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
