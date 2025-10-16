@@ -3,294 +3,266 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI API Test Automation Dashboard</title>
-    <link rel="stylesheet" href="/style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <title>API Test Automation POC - Dashboard</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="app-container">
-        <!-- Header -->
-        <header class="app-header">
-            <div class="header-content">
-                <div class="header-left">
-                    <h1><i class="fas fa-robot"></i> AI API Test Automation</h1>
-                    <p>Real-time test generation and execution dashboard</p>
-                </div>
-                <div class="header-right">
-                    <div class="status-indicator">
-                        <span id="connection-status" class="status-dot"></span>
-                        <span id="status-text">Initializing...</span>
-                    </div>
-                    <div class="timestamp" id="timestamp"></div>
-                </div>
-            </div>
+    <div class="container">
+        <header>
+            <h1>🤖 AI-Powered API Test Automation POC</h1>
+            <p>Real-time test generation and execution dashboard</p>
         </header>
 
-        <!-- Main Layout -->
-        <div class="main-layout">
-            <!-- Left Panel - Main Content -->
-            <div class="left-panel">
-                <!-- Test Overview Cards -->
-                <div class="overview-grid">
-                    <!-- API Spec Card -->
-                    <div class="overview-card spec-card">
-                        <div class="card-header">
-                            <i class="fas fa-file-code"></i>
-                            <h3>API Specification</h3>
-                        </div>
-                        <div class="card-content">
-                            <div class="spec-info">
-                                <div class="spec-item">
-                                    <span class="label">File:</span>
-                                    <span id="spec-file" class="value">specs/aadhaar-api.yaml</span>
-                                </div>
-                                <div class="spec-item">
-                                    <span class="label">Endpoints:</span>
-                                    <span id="endpoint-count" class="value">0</span>
-                                </div>
-                                <div class="spec-item">
-                                    <span class="label">Version:</span>
-                                    <span id="spec-version" class="value">v1.0.0</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+        <div class="status-bar">
+            <div class="status-item">
+                <span class="status-label">Status:</span>
+                <span id="status" class="status-value">Initializing...</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Last Update:</span>
+                <span id="timestamp" class="status-value">-</span>
+            </div>
+            <div class="status-item">
+                <button id="reset-btn" class="reset-button" onclick="resetDashboard()">🔄 Reset Dashboard</button>
+            </div>
+        </div>
 
-                    <!-- Test Generation Card -->
-                    <div class="overview-card generation-card">
-                        <div class="card-header">
-                            <i class="fas fa-magic"></i>
-                            <h3>Test Generation</h3>
-                        </div>
-                        <div class="card-content">
-                            <div class="progress-container">
-                                <div class="progress-bar">
-                                    <div class="progress-fill" id="generate-progress"></div>
-                                </div>
-                                <div class="progress-text">
-                                    <span id="generate-status">Waiting...</span>
-                                    <span id="progress-percent">0%</span>
-                                </div>
-                            </div>
-                            <div class="generation-stats">
-                                <div class="stat">
-                                    <span class="stat-label">Tests Generated:</span>
-                                    <span id="test-count" class="stat-value">0</span>
-                                </div>
-                                <div class="stat">
-                                    <span class="stat-label">File Version:</span>
-                                    <span id="file-version" class="stat-value">v1</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Test Execution Card -->
-                    <div class="overview-card execution-card">
-                        <div class="card-header">
-                            <i class="fas fa-play-circle"></i>
-                            <h3>Test Execution</h3>
-                        </div>
-                        <div class="card-content">
-                            <div class="execution-summary">
-                                <div class="result-grid">
-                                    <div class="result-item passed">
-                                        <div class="result-icon"><i class="fas fa-check"></i></div>
-                                        <div class="result-details">
-                                            <span class="result-label">Passed</span>
-                                            <span id="tests-passed" class="result-count">0</span>
-                                        </div>
-                                    </div>
-                                    <div class="result-item failed">
-                                        <div class="result-icon"><i class="fas fa-times"></i></div>
-                                        <div class="result-details">
-                                            <span class="result-label">Failed</span>
-                                            <span id="tests-failed" class="result-count">0</span>
-                                        </div>
-                                    </div>
-                                    <div class="result-item error">
-                                        <div class="result-icon"><i class="fas fa-exclamation-triangle"></i></div>
-                                        <div class="result-details">
-                                            <span class="result-label">Error</span>
-                                            <span id="tests-error" class="result-count">0</span>
-                                        </div>
-                                    </div>
-                                    <div class="result-item total">
-                                        <div class="result-icon"><i class="fas fa-list"></i></div>
-                                        <div class="result-details">
-                                            <span class="result-label">Total</span>
-                                            <span id="tests-total" class="result-count">0</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Coverage Card -->
-                    <div class="overview-card coverage-card">
-                        <div class="card-header">
-                            <i class="fas fa-chart-pie"></i>
-                            <h3>Test Coverage</h3>
-                        </div>
-                        <div class="card-content">
-                            <div class="coverage-display">
-                                <div class="coverage-circle">
-                                    <svg class="coverage-svg" viewBox="0 0 100 100">
-                                        <circle class="coverage-bg" cx="50" cy="50" r="45"></circle>
-                                        <circle class="coverage-progress" cx="50" cy="50" r="45" id="coverage-circle"></circle>
-                                    </svg>
-                                    <div class="coverage-text">
-                                        <span id="coverage-percentage">0%</span>
-                                    </div>
-                                </div>
-                                <div class="coverage-details">
-                                    <div class="coverage-item">
-                                        <span class="label">Lines Covered:</span>
-                                        <span id="lines-covered" class="value">0</span>
-                                    </div>
-                                    <div class="coverage-item">
-                                        <span class="label">Total Lines:</span>
-                                        <span id="total-lines" class="value">0</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+        <div class="grid">
+            <!-- API Specification -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>📄 API Specification</h2>
                 </div>
-
-                <!-- Test Details Section -->
-                <div class="test-details-section">
-                    <div class="section-header">
-                        <h2><i class="fas fa-list-ul"></i> Test Details (Pass/Fail Reasons)</h2>
-                        <div class="section-controls">
-                            <button class="btn btn-primary" id="view-tests-btn">
-                                <i class="fas fa-eye"></i> View Generated Tests
-                            </button>
-                            <button class="btn btn-secondary" id="run-tests-btn">
-                                <i class="fas fa-play"></i> Run Tests
-                            </button>
-                        </div>
+                <div class="card-body">
+                    <div class="stat">
+                        <span class="stat-label">File:</span>
+                        <span id="spec-file">-</span>
                     </div>
-                    <div class="test-details-content">
-                        <div id="test-details-list" class="test-list">
-                            <div class="no-tests">
-                                <i class="fas fa-flask"></i>
-                                <p>No test results yet. Run tests to see detailed results.</p>
-                            </div>
-                        </div>
+                    <div class="stat">
+                        <span class="stat-label">Status:</span>
+                        <span id="parse-status" class="badge">Pending</span>
                     </div>
-                </div>
-
-                <!-- Contract Testing Section -->
-                <div class="contract-section">
-                    <div class="section-header">
-                        <h2><i class="fas fa-handshake"></i> Contract Testing</h2>
-                    </div>
-                    <div class="contract-content">
-                        <div class="contract-stats">
-                            <div class="contract-stat">
-                                <span class="stat-label">Contracts Tested:</span>
-                                <span id="contracts-total" class="stat-value">0</span>
-                            </div>
-                            <div class="contract-stat">
-                                <span class="stat-label">Passed:</span>
-                                <span id="contracts-passed" class="stat-value passed">0</span>
-                            </div>
-                            <div class="contract-stat">
-                                <span class="stat-label">Failed:</span>
-                                <span id="contracts-failed" class="stat-value failed">0</span>
-                            </div>
-                        </div>
-                        <div id="contract-details" class="contract-list">
-                            <!-- Contract details will be populated here -->
-                        </div>
+                    <div class="stat">
+                        <span class="stat-label">Endpoints:</span>
+                        <span id="endpoint-count">0</span>
                     </div>
                 </div>
             </div>
 
-            <!-- Right Panel - Activity Log -->
-            <div class="right-panel">
-                <div class="activity-panel">
-                    <div class="panel-header">
-                        <h3><i class="fas fa-history"></i> Activity Log</h3>
-                        <button class="btn btn-sm btn-ghost" id="clear-log-btn">
-                            <i class="fas fa-trash"></i> Clear
-                        </button>
+            <!-- Test Generation -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>🤖 Test Generation</h2>
+                </div>
+                <div class="card-body">
+                    <div class="progress-bar">
+                        <div id="gen-progress" class="progress-fill" style="width: 0%"></div>
                     </div>
-                    <div class="panel-content">
-                        <div id="activity-log" class="activity-log">
-                            <!-- Activity items will be populated here -->
-                        </div>
+                    <div class="stat">
+                        <span class="stat-label">Tests Generated:</span>
+                        <span id="tests-generated">0</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Status:</span>
+                        <span id="gen-status" class="badge">Pending</span>
                     </div>
                 </div>
+            </div>
 
-                <!-- Git & CI/CD Status -->
-                <div class="git-cicd-panel">
-                    <div class="panel-header">
-                        <h3><i class="fas fa-code-branch"></i> Git & CI/CD</h3>
+            <!-- Code Validation -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>✓ Code Validation</h2>
+                </div>
+                <div class="card-body">
+                    <div class="stat">
+                        <span class="stat-label">Syntax:</span>
+                        <span id="syntax-check" class="badge">Pending</span>
                     </div>
-                    <div class="panel-content">
-                        <div class="git-status">
-                            <div class="git-item">
-                                <i class="fas fa-commit"></i>
-                                <span class="git-label">Committed:</span>
-                                <span id="git-committed" class="git-value">No</span>
-                            </div>
-                            <div class="git-item">
-                                <i class="fas fa-upload"></i>
-                                <span class="git-label">Pushed:</span>
-                                <span id="git-pushed" class="git-value">No</span>
-                            </div>
-                            <div class="git-item">
-                                <i class="fas fa-tag"></i>
-                                <span class="git-label">Version:</span>
-                                <span id="git-version" class="git-value">-</span>
-                            </div>
-                        </div>
-                        
-                        <div class="cicd-status">
-                            <div class="cicd-header">
-                                <i class="fas fa-rocket"></i>
-                                <span>CI/CD Pipeline</span>
-                            </div>
-                            <div class="cicd-content">
-                                <div class="pipeline-status" id="pipeline-status">
-                                    <span class="status-text">Not triggered</span>
-                                </div>
-                                <div class="pipeline-steps" id="pipeline-steps">
-                                    <!-- Pipeline steps will be populated here -->
-                                </div>
-                            </div>
-                        </div>
+                    <div class="stat">
+                        <span class="stat-label">Imports:</span>
+                        <span id="import-check" class="badge">Pending</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Overall:</span>
+                        <span id="validation-status" class="badge">Pending</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Test Execution -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>🧪 Test Execution</h2>
+                </div>
+                <div class="card-body">
+                    <div class="stat">
+                        <span class="stat-label">Passed:</span>
+                        <span id="tests-passed" class="text-success">0</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Failed:</span>
+                        <span id="tests-failed" class="text-danger">0</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Total:</span>
+                        <span id="tests-total">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Test Details Card -->
+<div class="card test-details-card" style="display: none;" id="test-details-card">
+    <div class="card-header">
+        <h2>📋 Test Details (Pass/Fail Reasons)</h2>
+    </div>
+    <div class="card-body">
+        <div id="test-details-list"></div>
+    </div>
+</div>
+
+            <!-- Code Coverage -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>📊 Code Coverage</h2>
+                </div>
+                <div class="card-body">
+                    <div class="coverage-circle">
+                        <svg width="120" height="120">
+                            <circle cx="60" cy="60" r="50" fill="none" stroke="#e0e0e0" stroke-width="10"/>
+                            <circle id="coverage-circle" cx="60" cy="60" r="50" fill="none" 
+                                    stroke="#4caf50" stroke-width="10" 
+                                    stroke-dasharray="314" stroke-dashoffset="314"
+                                    transform="rotate(-90 60 60)"/>
+                            <text x="60" y="70" text-anchor="middle" font-size="24" font-weight="bold" id="coverage-text">0%</text>
+                        </svg>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Target:</span>
+                        <span>85%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contract Testing -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>📋 Contract Testing</h2>
+                </div>
+                <div class="card-body">
+                    <div class="stat">
+                        <span class="stat-label">Contracts Tested:</span>
+                        <span id="contracts-tested">0</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Passed:</span>
+                        <span id="contracts-passed" class="text-success">0</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Failed:</span>
+                        <span id="contracts-failed" class="text-danger">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Git Status -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>🔗 Git Status</h2>
+                </div>
+                <div class="card-body">
+                    <div class="stat">
+                        <span class="stat-label">Repository:</span>
+                        <span id="git-repo">-</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Commit:</span>
+                        <span id="git-commit" class="badge">Pending</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Push:</span>
+                        <span id="git-push" class="badge">Pending</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CI/CD Status -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>🚀 CI/CD Status</h2>
+                </div>
+                <div class="card-body">
+                    <div class="stat">
+                        <span class="stat-label">Pipeline:</span>
+                        <span id="cicd-status" class="badge">Not Started</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Build:</span>
+                        <span id="build-status">-</span>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Modals -->
-    <div id="file-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2><i class="fas fa-file-code"></i> Generated Test File</h2>
-                <button class="modal-close" id="modal-close">&times;</button>
+        <!-- Comparison Section -->
+        <div class="comparison-section" style="display: none;" id="comparison-section">
+            <h2>📊 Before vs After AI</h2>
+            <div class="comparison-grid">
+                <div class="comparison-card">
+                    <h3>📉 Before AI</h3>
+                    <div class="metric">
+                        <span class="metric-label">Manual Effort:</span>
+                        <span id="before-effort" class="metric-value">-</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Test Cases:</span>
+                        <span id="before-tests" class="metric-value">0</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Coverage:</span>
+                        <span id="before-coverage" class="metric-value">0%</span>
+                    </div>
+                </div>
+                
+                <div class="comparison-card highlight">
+                    <h3>📈 After AI</h3>
+                    <div class="metric">
+                        <span class="metric-label">Generation Time:</span>
+                        <span id="after-time" class="metric-value">-</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Test Cases:</span>
+                        <span id="after-tests" class="metric-value">-</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Lines of Code:</span>
+                        <span id="after-lines" class="metric-value">-</span>
+                    </div>
+                </div>
+
+                <!-- Test Failures Details -->
+<div class="card failures-card" style="display: none;" id="failures-card">
+    <div class="card-header">
+        <h2>❌ Test Failures</h2>
+    </div>
+    <div class="card-body">
+        <div id="failures-list"></div>
+    </div>
+</div>
             </div>
-            <div class="modal-body">
-                <pre id="file-content" class="code-preview"></pre>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" id="download-btn">
-                    <i class="fas fa-download"></i> Download
-                </button>
-                <button class="btn btn-primary" id="copy-btn">
-                    <i class="fas fa-copy"></i> Copy to Clipboard
-                </button>
-            </div>
+        </div>
+
+        <div class="actions">
+            <a href="/coverage-report" target="_blank" class="button button-primary">View Coverage Report</a>
+            <a href="/generated-tests" target="_blank" class="button button-secondary">View Generated Tests</a>
+        </div>
+
+        <div class="log-section">
+            <h3>📝 Activity Log</h3>
+            <div id="log" class="log-container"></div>
         </div>
     </div>
 
-    <script src="/app.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>
