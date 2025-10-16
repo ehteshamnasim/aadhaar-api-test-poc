@@ -82,9 +82,9 @@ paths:
                   name:
                     type: boolean
                   dob:
-                    type: string
+                    type: object
                   gender:
-                    type: string
+                    type: object
                   address:
                     type: string
         '400':
