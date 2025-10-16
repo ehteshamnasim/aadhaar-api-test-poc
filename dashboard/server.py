@@ -43,15 +43,23 @@ def broadcast_event(event_type: str, data: dict):
 
 @app.route('/')
 def index():
-    return send_from_directory('.', 'index.html')
+    response = send_from_directory('.', 'index.html')
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
 
 @app.route('/style.css')
 def styles():
-    return send_from_directory('.', 'style.css')
+    response = send_from_directory('.', 'style.css')
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    return response
 
 @app.route('/app.js')
 def scripts():
-    return send_from_directory('.', 'app.js')
+    response = send_from_directory('.', 'app.js')
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    return response
 
 @app.route('/api/event', methods=['POST', 'OPTIONS'])
 def receive_event():

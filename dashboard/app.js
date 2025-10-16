@@ -1,5 +1,7 @@
-// SSE Connection
-const eventSource = new EventSource('/events');
+// SSE Connection with auto-reconnect
+let eventSource = null;
+let reconnectAttempts = 0;
+const MAX_RECONNECT_ATTEMPTS = 5;
 
 // Update timestamp
 function updateTimestamp() {
@@ -108,7 +110,20 @@ function resetDashboard() {
     addLog('Dashboard reset - ready for new POC run', 'info');
 }
 
-// Handle SSE events
+// Handle SSE events - wrapped in connectSSE function
+function connectSSE() {
+    if (eventSource) {
+        eventSource.close();
+    }
+    
+    eventSource = new EventSource('/events');
+    
+    eventSource.onopen = function() {
+        reconnectAttempts = 0;
+        document.getElementById('status').textContent = 'Connected - Ready';
+        console.log('✅ SSE Connected');
+    };
+
 eventSource.onmessage = function(event) {
     const data = JSON.parse(event.data);
     updateTimestamp();
@@ -258,9 +273,40 @@ eventSource.onmessage = function(event) {
 
 eventSource.onerror = function(error) {
     console.error('SSE Error:', error);
-    document.getElementById('status').textContent = 'Connection lost';
-    addLog('Connection to server lost. Retrying...', 'error');
+    document.getElementById('status').textContent = 'Connection lost - Reconnecting...';
+    addLog('Connection lost. Attempting to reconnect...', 'error');
+    
+    // Close existing connection
+    if (eventSource) {
+        eventSource.close();
+    }
+    
+    // Retry connection with backoff
+    reconnectAttempts++;
+    if (reconnectAttempts <= MAX_RECONNECT_ATTEMPTS) {
+        const delay = Math.min(1000 * reconnectAttempts, 5000);
+        console.log(`Reconnecting in ${delay}ms (attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`);
+        setTimeout(() => {
+            addLog(`Reconnecting... (attempt ${reconnectAttempts})`, 'info');
+            connectSSE();
+        }, delay);
+    } else {
+        addLog('Max reconnection attempts reached. Please refresh the page.', 'error');
+    }
 };
+}
+
+// Initialize connection
+connectSSE();
+
+// Handle page visibility - reconnect when page becomes visible
+document.addEventListener('visibilitychange', function() {
+    if (!document.hidden && eventSource && eventSource.readyState === EventSource.CLOSED) {
+        addLog('Page visible - reconnecting...', 'info');
+        reconnectAttempts = 0;
+        connectSSE();
+    }
+});
 
 // Initialize
 updateTimestamp();
