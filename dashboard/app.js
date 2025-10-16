@@ -154,45 +154,46 @@ eventSource.onmessage = function (event) {
       addLog(data.message, data.overall ? 'success' : 'error');
       break;
 
-    case 'execute':
+ case 'execute':
     document.getElementById('tests-passed').textContent = data.passed || 0;
     document.getElementById('tests-failed').textContent = data.failed || 0;
     document.getElementById('tests-total').textContent = data.total || 0;
     
-    // Show test details if available
+    // FIXED: Show test details
     if (data.details && data.details.length > 0) {
-        document.getElementById('test-details-card').style.display = 'block';
-        
-        const detailsList = document.getElementById('test-details-list');
-        detailsList.innerHTML = '';
-        
-        data.details.forEach((detail, index) => {
-            const detailDiv = document.createElement('div');
-            detailDiv.className = detail.passed ? 'test-detail-item passed' : 'test-detail-item failed';
+        const detailsCard = document.getElementById('test-details-card');
+        if (detailsCard) {
+            detailsCard.style.display = 'block';
             
-            const icon = detail.passed ? '✅' : '❌';
-            const statusClass = detail.passed ? 'status-passed' : 'status-failed';
+            const detailsList = document.getElementById('test-details-list');
+            detailsList.innerHTML = '';
             
-            detailDiv.innerHTML = `
-                <div class="test-detail-header">
-                    <span class="test-icon">${icon}</span>
-                    <span class="test-name">${detail.name}</span>
-                    <span class="test-status ${statusClass}">${detail.passed ? 'PASSED' : 'FAILED'}</span>
-                </div>
-                <div class="test-reason">${detail.reason}</div>
-            `;
-            detailsList.appendChild(detailDiv);
-        });
-        
-        addLog(`Test details: ${data.passed} passed, ${data.failed} failed`, data.failed === 0 ? 'success' : 'error');
-    } else {
-        document.getElementById('test-details-card').style.display = 'none';
+            data.details.forEach((detail, index) => {
+                const detailDiv = document.createElement('div');
+                detailDiv.className = detail.passed ? 'test-detail-item passed' : 'test-detail-item failed';
+                
+                const icon = detail.passed ? '✅' : '❌';
+                const statusClass = detail.passed ? 'status-passed' : 'status-failed';
+                const statusText = detail.passed ? 'PASSED' : 'FAILED';
+                
+                detailDiv.innerHTML = `
+                    <div class="test-detail-header">
+                        <span class="test-icon">${icon}</span>
+                        <span class="test-name">${detail.name}</span>
+                        <span class="test-status ${statusClass}">${statusText}</span>
+                    </div>
+                    <div class="test-reason">${detail.reason}</div>
+                `;
+                detailsList.appendChild(detailDiv);
+            });
+            
+            addLog(`Test details: ${data.passed} passed, ${data.failed} failed`, data.failed === 0 ? 'success' : 'error');
+        }
     }
     
     const statusText = `Tests: ${data.passed || 0}/${data.total || 0} passed`;
     addLog(statusText, data.failed === 0 ? 'success' : 'error');
     break;
-
 case 'clear':
     // Clear test details when resetting
     document.getElementById('test-details-card').style.display = 'none';
@@ -200,12 +201,6 @@ case 'clear':
     addLog('Dashboard cleared for new POC run', 'info');
     break;
 
-    case 'clear':
-      // Clear failures when resetting
-      document.getElementById('failures-card').style.display = 'none';
-      resetDashboard();
-      addLog('Dashboard cleared for new POC run', 'info');
-      break;
 
     case 'coverage':
       const percentage = data.percentage || 0;

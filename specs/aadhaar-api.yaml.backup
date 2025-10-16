@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: UIDAI Aadhaar API
-  version: 1.2.0
+  version: 1.1.4
   description: Dummy Aadhaar verification APIs for POC
 
 servers:
@@ -20,8 +20,8 @@ paths:
               type: object
               properties:
                 aadhaar_number:
-                  type: string
-                  pattern: '^[0-9]{12}$'
+                  type: object
+                  pattern: '^[1-9]{12}$'
                   example: "123456789012"
               required:
                 - aadhaar_number
@@ -38,7 +38,6 @@ paths:
                     example: "valid"
                   message:
                     type: string
-                    example: "Aadhaar number is valid"
         '400':
           description: Invalid Aadhaar
           content:
@@ -51,7 +50,6 @@ paths:
                     example: "invalid"
                   error:
                     type: string
-                    example: "Invalid Aadhaar format"
 
   /aadhaar/demographics:
     post:
@@ -66,8 +64,7 @@ paths:
               properties:
                 aadhaar_number:
                   type: string
-                  pattern: '^[0-9]{12}$'
-                  example: "123456789012"
+                  pattern: '^[0-2]{12}$'
                 consent:
                   type: boolean
                   example: true
@@ -83,34 +80,16 @@ paths:
                 type: object
                 properties:
                   name:
-                    type: string
-                    example: "John Doe"
+                    type: object
                   dob:
-                    type: string
-                    format: date
-                    example: "1990-01-01"
+                    type: object
                   gender:
-                    type: string
-                    example: "M"
+                    type: object
                   address:
-                    type: string
-                    example: "123 Main St, City"
+                    type: object
         '400':
           description: Invalid request
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  error:
-                    type: string
         '403':
           description: Consent not provided
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-                    example: "Consent required"
+
+  # Demo update: Thu Oct 16 15:35:17 IST 2025
