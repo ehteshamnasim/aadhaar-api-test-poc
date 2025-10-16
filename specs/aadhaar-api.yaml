@@ -21,7 +21,7 @@ paths:
               properties:
                 aadhaar_number:
                   type: string
-                  pattern: '^[0-9]{12}$'
+                  pattern: '^[1-9]{12}$'
                   example: "123456789012"
               required:
                 - aadhaar_number
