@@ -64,7 +64,7 @@ paths:
               properties:
                 aadhaar_number:
                   type: string
-                  pattern: '^[0-9]{12}$'
+                  pattern: '^[0-2]{12}$'
                 consent:
                   type: boolean
                   example: true
