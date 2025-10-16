@@ -147,3 +147,15 @@ def test_demographics_forbidden_access(session):
     response = session.post(f"{BASE_URL}/aadhaar/demographics", json=payload)
     assert response.status_code == 403
     assert isinstance(response.json(), dict)
+
+
+# --- New tests generated on 2025-10-16 15:39:07 ---
+
+def test_demographics_missing_consent(session):
+    """
+    Test demographic details retrieval with missing consent.
+    """
+    payload = {"aadhaar_number": "123456789012"}
+    response = session.post(f"{BASE_URL}/aadhaar/demographics", json=payload)
+    assert response.status_code == 403
+    assert isinstance(response.json(), dict)
