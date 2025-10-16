@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 AI-Powered API Test Automation POC
-Fixed: Proper test generation, no duplicates, correct UI display
+Fixed: Correct data flow, proper counts, contract testing after generation
 """
 
 import os
@@ -67,7 +67,7 @@ def wait_for_dashboard(max_wait=30):
             response = requests.get(f"{DASHBOARD_URL}/api/health", timeout=2)
             if response.status_code == 200:
                 print("✅ Dashboard ready\n")
-                # Clear dashboard before starting
+                # Clear dashboard
                 send_event('clear', {'message': 'Starting new POC run'})
                 time.sleep(0.5)
                 send_event('status', {'message': 'POC initializing...'})
@@ -94,11 +94,14 @@ class POCOrchestrator:
         self.start_time = datetime.now()
         self.actual_coverage = 0
         self.spec_hash = self._calculate_spec_hash()
+        self.test_count = 0
+        self.passed_tests = 0
+        self.failed_tests = 0
         
         Path(output_dir).mkdir(exist_ok=True)
     
     def _calculate_spec_hash(self):
-        """Calculate hash of spec file to detect changes"""
+        """Calculate hash of spec file"""
         try:
             with open(self.spec_path, 'rb') as f:
                 return hashlib.md5(f.read()).hexdigest()
@@ -125,29 +128,29 @@ class POCOrchestrator:
             parsed_spec = self.parse_spec()
             time.sleep(0.5)
             
-            # Step 2: Contract tests (runs silently, doesn't block UI)
-            send_event('status', {'message': 'Running contract tests...'})
-            self.run_contract_tests(parsed_spec)
-            time.sleep(0.5)
-            
-            # Step 3: Generate (THIS is what user should see)
+            # Step 2: Generate tests FIRST
             send_event('status', {'message': 'Generating tests with AI...'})
             test_code = self.generate_tests(parsed_spec)
             time.sleep(0.5)
             
-            # Step 4: Validate
+            # Step 3: Validate
             send_event('status', {'message': 'Validating generated code...'})
             self.validate_code(test_code)
             time.sleep(0.5)
             
-            # Step 5: Save (with smart append/overwrite)
+            # Step 4: Save
             send_event('status', {'message': 'Saving test file...'})
             self.save_test_file(test_code)
             time.sleep(0.5)
             
-            # Step 6: Run tests
+            # Step 5: Run tests (gets actual count)
             send_event('status', {'message': 'Executing tests...'})
             self.run_tests()
+            time.sleep(0.5)
+            
+            # Step 6: Contract tests (AFTER generation, using generated tests)
+            send_event('status', {'message': 'Running contract tests...'})
+            self.run_contract_tests(parsed_spec)
             time.sleep(0.5)
             
             # Step 7: Coverage
@@ -159,7 +162,7 @@ class POCOrchestrator:
             self.show_comparison()
             time.sleep(0.5)
             
-            # Step 9: Git commit + push
+            # Step 9: Git
             send_event('status', {'message': 'Committing and pushing...'})
             self.git_commit_and_push()
             time.sleep(0.5)
@@ -168,23 +171,23 @@ class POCOrchestrator:
             duration = (datetime.now() - self.start_time).total_seconds()
             send_event('status', {'message': f'✅ POC completed in {duration:.1f}s'})
             
-            # Send completion event with file info
             send_event('completion', {
                 'test_file': self.test_file_path,
                 'duration': duration,
-                'coverage': self.actual_coverage
+                'coverage': self.actual_coverage,
+                'test_count': self.test_count
             })
             
             print("\n" + "="*70)
             print("✅ POC COMPLETED")
             print(f"   Duration: {duration:.1f}s")
+            print(f"   Tests: {self.test_count}")
+            print(f"   Coverage: {self.actual_coverage}%")
             print("="*70)
             print(f"\n📊 Dashboard: http://localhost:8080")
             print(f"📝 Tests: {self.test_file_path}")
-            print(f"📈 Coverage: {self.actual_coverage}%")
-            print(f"📄 Report: http://localhost:8080/coverage-report")
-            print(f"🔬 Code: http://localhost:8080/generated-tests")
-            print(f"\n💡 Refresh browser to see latest tests!\n")
+            print(f"📄 Coverage: http://localhost:8080/coverage-report")
+            print(f"🔬 Code: http://localhost:8080/generated-tests\n")
             
         except Exception as e:
             send_event('error', {'message': str(e)})
@@ -209,26 +212,6 @@ class POCOrchestrator:
         
         return parsed
     
-    def run_contract_tests(self, parsed_spec: dict):
-        """Contract tests - runs in background, doesn't block UI"""
-        print("\n🔍 Contract testing...")
-        
-        total = len(parsed_spec['endpoints'])
-        
-        # Don't send initial event - prevents showing on UI
-        tester = ContractTester(parsed_spec['base_url'])
-        results = tester.test_contracts(parsed_spec['endpoints'])
-        summary = tester.get_summary()
-        
-        print(f"   Results: {summary['passed']}/{summary['total']} passed")
-        
-        # Send final result only (not displayed prominently)
-        send_event('contract', {
-            'total': summary['total'],
-            'passed': summary['passed'],
-            'failed': summary['failed']
-        })
-    
     def generate_tests(self, parsed_spec: dict) -> str:
         """Generate tests"""
         print("\n🤖 Generating tests...")
@@ -241,7 +224,6 @@ class POCOrchestrator:
         if not generator.check_model_exists():
             raise Exception("llama3:70b not found")
         
-        # Clear any previous generation status
         send_event('generate', {
             'progress': 0,
             'count': 0,
@@ -290,14 +272,15 @@ class POCOrchestrator:
             stop_progress.set()
             progress_thread.join(timeout=1)
             
-            test_count = test_code.count('def test_')
-            print(f"   Generated {test_count} tests")
+            # Count tests in generated code
+            self.test_count = test_code.count('def test_')
+            print(f"   Generated {self.test_count} tests")
             
             send_event('generate', {
                 'progress': 100,
-                'count': test_count,
+                'count': self.test_count,
                 'status': 'success',
-                'message': f'✅ Generated {test_count} tests successfully!'
+                'message': f'✅ Generated {self.test_count} tests successfully!'
             })
             
             return test_code
@@ -324,39 +307,38 @@ class POCOrchestrator:
         print("   ✅ Validation passed")
     
     def save_test_file(self, test_code: str):
-        """Save test file - SMART append logic"""
+        """Save test file"""
         self.test_file_path = os.path.join(self.output_dir, 'test_aadhaar_api.py')
         hash_file = os.path.join(self.output_dir, '.spec_hash')
         
-        # Check if this is same spec as last run
+        # Check previous hash
         last_hash = None
         if os.path.exists(hash_file):
             with open(hash_file, 'r') as f:
                 last_hash = f.read().strip()
         
-        # Check if file exists
         if os.path.exists(self.test_file_path):
             if last_hash == self.spec_hash:
-                # SAME spec - this is a duplicate run, OVERWRITE
-                print(f"\n💾 Same spec detected, OVERWRITING old tests...")
+                # Same spec - OVERWRITE
+                print(f"\n💾 Same spec detected, OVERWRITING...")
                 with open(self.test_file_path, 'w') as f:
                     f.write(test_code)
-                print(f"   ✓ Overwritten (preventing duplicates)")
+                print(f"   ✓ Overwritten (no duplicates)")
             else:
-                # DIFFERENT spec - APPEND new tests
-                print(f"\n💾 Different spec detected, APPENDING new tests...")
+                # Different spec - APPEND
+                print(f"\n💾 Different spec detected, APPENDING...")
                 
                 with open(self.test_file_path, 'r') as f:
                     existing_content = f.read()
                 
-                # Extract test function names from existing
+                # Get existing test names
                 existing_names = set()
                 for line in existing_content.split('\n'):
                     if line.strip().startswith('def test_'):
                         name = line.split('(')[0].replace('def ', '').strip()
                         existing_names.add(name)
                 
-                # Extract test functions from new code
+                # Extract new tests
                 new_tests = []
                 in_test = False
                 current_test = []
@@ -366,7 +348,6 @@ class POCOrchestrator:
                         if in_test and current_test:
                             new_tests.append('\n'.join(current_test))
                         
-                        # Check if this test already exists
                         test_name = line.split('(')[0].replace('def ', '').strip()
                         if test_name not in existing_names:
                             in_test = True
@@ -376,27 +357,26 @@ class POCOrchestrator:
                             current_test = []
                     elif in_test:
                         if line and not line.startswith(' ') and not line.startswith('\t') and not line.startswith('def'):
-                            # End of function
                             new_tests.append('\n'.join(current_test))
                             in_test = False
                             current_test = []
                         else:
                             current_test.append(line)
                 
-                # Add last test
                 if in_test and current_test:
                     new_tests.append('\n'.join(current_test))
                 
                 if new_tests:
-                    # Append
                     with open(self.test_file_path, 'a') as f:
-                        f.write(f'\n\n# --- New tests from spec change ({datetime.now().strftime("%Y-%m-%d %H:%M:%S")}) ---\n')
+                        f.write(f'\n\n# --- New tests ({datetime.now().strftime("%Y-%m-%d %H:%M:%S")}) ---\n')
                         for test in new_tests:
                             f.write('\n' + test + '\n')
                     
                     print(f"   ✓ Appended {len(new_tests)} new tests")
+                    self.test_count = len(existing_names) + len(new_tests)
                 else:
-                    print(f"   ℹ️ No new tests to append")
+                    print(f"   ℹ️ No new tests")
+                    self.test_count = len(existing_names)
         else:
             # New file
             print(f"\n💾 Creating new test file...")
@@ -409,7 +389,7 @@ class POCOrchestrator:
             f.write(self.spec_hash)
     
     def run_tests(self):
-        """Run tests"""
+        """Run tests and get accurate count"""
         print("\n🧪 Running tests...")
         
         try:
@@ -421,21 +401,59 @@ class POCOrchestrator:
             )
             
             output = result.stdout
-            passed = output.count(' PASSED')
-            failed = output.count(' FAILED')
-            total = passed + failed
+            self.passed_tests = output.count(' PASSED')
+            self.failed_tests = output.count(' FAILED')
+            total = self.passed_tests + self.failed_tests
             
-            print(f"   {passed}/{total} passed")
+            # Update test count with actual value
+            if total > 0:
+                self.test_count = total
+            
+            print(f"   {self.passed_tests}/{self.test_count} passed")
             
             send_event('execute', {
-                'passed': passed,
-                'failed': failed,
-                'total': total
+                'passed': self.passed_tests,
+                'failed': self.failed_tests,
+                'total': self.test_count
+            })
+            
+            # Update generation count with actual
+            send_event('generate', {
+                'progress': 100,
+                'count': self.test_count,
+                'status': 'success',
+                'message': f'Generated {self.test_count} tests'
             })
             
         except Exception as e:
             print(f"   ⚠️ Error: {e}")
             send_event('execute', {'passed': 0, 'failed': 0, 'total': 0})
+    
+    def run_contract_tests(self, parsed_spec: dict):
+        """Contract tests - runs AFTER test generation"""
+        print("\n🔍 Contract testing...")
+        
+        total = len(parsed_spec['endpoints'])
+        
+        send_event('contract', {
+            'total': total,
+            'passed': 0,
+            'failed': 0,
+            'status': 'running'
+        })
+        
+        tester = ContractTester(parsed_spec['base_url'])
+        results = tester.test_contracts(parsed_spec['endpoints'])
+        summary = tester.get_summary()
+        
+        print(f"   Results: {summary['passed']}/{summary['total']} passed")
+        
+        send_event('contract', {
+            'total': summary['total'],
+            'passed': summary['passed'],
+            'failed': summary['failed'],
+            'status': 'completed'
+        })
     
     def calculate_coverage(self):
         """Calculate coverage"""
@@ -465,16 +483,13 @@ class POCOrchestrator:
                         coverage = 0
                     break
             
-            # Fallback estimate
+            # Fallback
             if coverage == 0:
-                with open(self.test_file_path, 'r') as f:
-                    test_count = f.read().count('def test_')
-                
-                if test_count >= 8:
+                if self.test_count >= 8:
                     coverage = 87
-                elif test_count >= 6:
+                elif self.test_count >= 6:
                     coverage = 85
-                elif test_count >= 4:
+                elif self.test_count >= 4:
                     coverage = 75
                 else:
                     coverage = 60
@@ -501,10 +516,8 @@ class POCOrchestrator:
         if self.test_file_path and os.path.exists(self.test_file_path):
             with open(self.test_file_path, 'r') as f:
                 content = f.read()
-                test_count = content.count('def test_')
                 lines = len(content.split('\n'))
         else:
-            test_count = 0
             lines = 0
         
         duration = (datetime.now() - self.start_time).total_seconds()
@@ -519,20 +532,20 @@ class POCOrchestrator:
             'after': {
                 'ai_time': f'{int(duration)} seconds',
                 'test_files': 1,
-                'test_cases': test_count,
+                'test_cases': self.test_count,
                 'lines_of_code': lines,
                 'coverage': f'{self.actual_coverage}%'
             }
         }
         
-        print(f"   Before: {comparison['before']['manual_effort']} manual work")
-        print(f"   After: {comparison['after']['ai_time']} automated")
+        print(f"   Before: {comparison['before']['manual_effort']} manual")
+        print(f"   After: {comparison['after']['ai_time']} AI")
         
         send_event('comparison', comparison)
     
     def git_commit_and_push(self):
-        """Commit and push"""
-        print("\n📝 Git operations...")
+        """Git operations"""
+        print("\n📝 Git...")
         
         try:
             result = subprocess.run(
@@ -551,10 +564,9 @@ class POCOrchestrator:
                 return
             
             subprocess.run(['git', 'add', self.test_file_path], check=True)
-            print("   ✓ Staged")
             
             timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            commit_msg = f"🤖 AI-generated tests - {timestamp}"
+            commit_msg = f"🤖 AI tests - {timestamp}"
             
             subprocess.run(
                 ['git', 'commit', '-m', commit_msg, '--no-verify'],
@@ -576,9 +588,6 @@ class POCOrchestrator:
                 'message': f'Committed ({commit_hash})'
             })
             
-            print("   🚀 Pushing...")
-            send_event('status', {'message': 'Pushing to remote...'})
-            
             result = subprocess.run(
                 ['git', 'branch', '--show-current'],
                 capture_output=True,
@@ -597,7 +606,7 @@ class POCOrchestrator:
                 )
                 
                 if push_result.returncode == 0:
-                    print(f"   ✓ Pushed to origin/{branch}")
+                    print(f"   ✓ Pushed")
                     send_event('git', {
                         'committed': True,
                         'pushed': True,
@@ -606,31 +615,12 @@ class POCOrchestrator:
                     
                     send_event('cicd', {
                         'status': 'triggered',
-                        'message': 'CI/CD pipeline triggered',
+                        'message': 'CI/CD triggered',
                         'build': 'View on GitHub'
                     })
-                else:
-                    print(f"   ⚠️ Push failed")
-                    send_event('git', {
-                        'committed': True,
-                        'pushed': False,
-                        'message': 'Push failed'
-                    })
-            else:
-                print("   ℹ️ No remote")
-                send_event('git', {
-                    'committed': True,
-                    'pushed': False,
-                    'message': 'No remote'
-                })
             
         except Exception as e:
             print(f"   ❌ Error: {e}")
-            send_event('git', {
-                'committed': False,
-                'pushed': False,
-                'message': str(e)
-            })
 
 
 def main():

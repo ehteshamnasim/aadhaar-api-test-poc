@@ -170,13 +170,17 @@ eventSource.onmessage = function(event) {
             break;
             
         case 'contract':
-            document.getElementById('contracts-tested').textContent = data.total || 0;
-            document.getElementById('contracts-passed').textContent = data.passed || 0;
-            document.getElementById('contracts-failed').textContent = data.failed || 0;
-            
-            addLog(`Contract tests: ${data.passed || 0}/${data.total || 0} passed`, 
-                   data.failed === 0 ? 'success' : 'error');
-            break;
+    document.getElementById('contracts-tested').textContent = data.total || 0;
+    document.getElementById('contracts-passed').textContent = data.passed || 0;
+    document.getElementById('contracts-failed').textContent = data.failed || 0;
+    
+    if (data.status === 'running') {
+        addLog(`Running contract tests for ${data.total || 0} endpoints...`, 'info');
+    } else if (data.status === 'completed') {
+        const status = data.failed === 0 ? 'success' : 'error';
+        addLog(`Contract tests: ${data.passed || 0}/${data.total || 0} passed`, status);
+    }
+    break;
             
         case 'git':
             document.getElementById('git-repo').textContent = 'Initialized';

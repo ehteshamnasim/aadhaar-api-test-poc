@@ -133,8 +133,73 @@ def health():
 
 @app.route('/coverage-report')
 def coverage_report():
-    """Redirect to coverage HTML report"""
-    return send_from_directory('../htmlcov', 'index.html')
+    """Serve coverage report with proper styling"""
+    try:
+        htmlcov_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'htmlcov')
+        index_path = os.path.join(htmlcov_path, 'index.html')
+        
+        if os.path.exists(index_path):
+            # Read and serve with cache control
+            with open(index_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # Inject custom styling to fix broken UI
+            custom_css = """
+            <style>
+            body { font-family: Arial, sans-serif !important; }
+            #header { background: #667eea !important; padding: 20px !important; }
+            #header h1 { color: white !important; }
+            table { width: 100% !important; border-collapse: collapse !important; }
+            table th { background: #764ba2 !important; color: white !important; padding: 10px !important; }
+            table td { padding: 8px !important; border-bottom: 1px solid #ddd !important; }
+            .pc_cov { font-weight: bold !important; }
+            </style>
+            """
+            
+            # Inject before </head>
+            if '</head>' in content:
+                content = content.replace('</head>', custom_css + '</head>')
+            
+            response = app.response_class(
+                response=content,
+                status=200,
+                mimetype='text/html'
+            )
+            response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+            response.headers['Pragma'] = 'no-cache'
+            response.headers['Expires'] = '0'
+            
+            return response
+        else:
+            return """
+                <html>
+                <head>
+                    <style>
+                        body { font-family: Arial; padding: 40px; text-align: center; background: #f5f5f5; }
+                        .container { background: white; padding: 40px; border-radius: 10px; max-width: 600px; margin: 0 auto; }
+                        h1 { color: #667eea; }
+                        a { color: #667eea; text-decoration: none; font-weight: bold; }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <h1>⚠️ Coverage Report Not Generated Yet</h1>
+                        <p>Run POC first to generate coverage report</p>
+                        <p><a href="/">← Back to Dashboard</a></p>
+                    </div>
+                </body>
+                </html>
+            """, 404
+    except Exception as e:
+        return f"""
+            <html>
+            <body style="font-family: Arial; padding: 40px; text-align: center;">
+                <h1>Error Loading Coverage Report</h1>
+                <p>{str(e)}</p>
+                <a href="/">← Back to Dashboard</a>
+            </body>
+            </html>
+        """, 500
 
 @app.route('/coverage-report/<path:filename>')
 def coverage_files(filename):
