@@ -4,72 +4,72 @@ import requests
 BASE_URL = "http://localhost:5000/api/v1"
 
 @pytest.fixture
-def headers():
-    return {"Content-Type": "application/json"}
+def session():
+    return requests.Session()
 
-def test_verify_aadhaar_success(headers):
+def test_aadhaar_verify_success(session):
     """
-    Test successful verification of Aadhaar number.
+    Test successful verification of Aadhaar number
     """
     payload = {
-        "aadhaar_number": "123456789012"
+        'aadhaar_number': '123456789012'
     }
-    response = requests.post(f"{BASE_URL}/aadhaar/verify", json=payload, headers=headers)
+    response = session.post(f"{BASE_URL}/aadhaar/verify", json=payload)
     assert response.status_code == 200
     assert isinstance(response.json(), dict)
 
-def test_verify_aadhaar_missing_field(headers):
+def test_aadhaar_verify_missing_field(session):
     """
-    Test verification of Aadhaar number with missing field.
+    Test verification of Aadhaar number with missing field
     """
     payload = {}
-    response = requests.post(f"{BASE_URL}/aadhaar/verify", json=payload, headers=headers)
+    response = session.post(f"{BASE_URL}/aadhaar/verify", json=payload)
     assert response.status_code == 400
     assert isinstance(response.json(), dict)
 
-def test_demographics_success(headers):
+def test_aadhaar_demographics_success(session):
     """
-    Test successful retrieval of demographic details.
+    Test successful retrieval of demographic details
     """
     payload = {
-        "aadhaar_number": "123456789012",
-        "consent": True
+        'aadhaar_number': '123456789012',
+        'consent': True
     }
-    response = requests.post(f"{BASE_URL}/aadhaar/demographics", json=payload, headers=headers)
+    response = session.post(f"{BASE_URL}/aadhaar/demographics", json=payload)
     assert response.status_code == 200
     assert isinstance(response.json(), dict)
 
-def test_demographics_missing_field(headers):
+def test_aadhaar_demographics_missing_field(session):
     """
-    Test retrieval of demographic details with missing field.
+    Test retrieval of demographic details with missing field
     """
     payload = {
-        "consent": True
+        'consent': True
     }
-    response = requests.post(f"{BASE_URL}/aadhaar/demographics", json=payload, headers=headers)
+    response = session.post(f"{BASE_URL}/aadhaar/demographics", json=payload)
     assert response.status_code == 400
     assert isinstance(response.json(), dict)
 
-def test_demographics_invalid_consent(headers):
+def test_aadhaar_demographics_invalid_consent(session):
     """
-    Test retrieval of demographic details with invalid consent value.
+    Test retrieval of demographic details with invalid consent value
     """
     payload = {
-        "aadhaar_number": "123456789012",
-        "consent": "invalid"
+        'aadhaar_number': '123456789012',
+        'consent': "invalid"
     }
-    response = requests.post(f"{BASE_URL}/aadhaar/demographics", json=payload, headers=headers)
+    response = session.post(f"{BASE_URL}/aadhaar/demographics", json=payload)
     assert response.status_code == 400
     assert isinstance(response.json(), dict)
 
-def test_demographics_unauthorized(headers):
+def test_aadhaar_demographics_forbidden_access(session):
     """
-    Test retrieval of demographic details without proper authorization.
+    Test retrieval of demographic details with forbidden access
     """
     payload = {
-        "aadhaar_number": "123456789012",
-        "consent": True
+        'aadhaar_number': '123456789012',
+        'consent': False
     }
-    response = requests.post(f"{BASE_URL}/aadhaar/demographics", json=payload, headers=headers)
+    response = session.post(f"{BASE_URL}/aadhaar/demographics", json=payload)
     assert response.status_code == 403
     assert isinstance(response.json(), dict)
