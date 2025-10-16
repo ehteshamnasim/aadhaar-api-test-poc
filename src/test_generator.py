@@ -79,14 +79,17 @@ API Endpoints to test:
             prompt += "\n"
         
         prompt += """
-Generate ONLY the Python code for pytest tests. Include:
-1. Import statements (pytest, pytest.mark.parametrize, from api.dummy_aadhaar_api import app)
+Generate ONLY the Python code for pytest tests using PARAMETRIZED tests.
+
+CRITICAL REQUIREMENTS:
+1. Import statements: pytest, from api.dummy_aadhaar_api import app
 2. Pytest fixture for test client
-3. Use pytest.mark.parametrize for test data variations where multiple scenarios exist
+3. EVERY test MUST use @pytest.mark.parametrize decorator with test data
 4. Test functions using client.post(), client.get(), etc.
 5. Assert statements for status codes and response structure
 
-Example structure with parameterization:
+MANDATORY PATTERN - Follow this EXACTLY for EACH endpoint:
+
 ```python
 import pytest
 from api.dummy_aadhaar_api import app
@@ -96,29 +99,29 @@ def client():
     return app.test_client()
 
 @pytest.mark.parametrize("input_data,expected_status,test_description", [
-    ({{"field": "valid_value"}}, 200, "valid input"),
-    ({{"field": ""}}, 400, "empty field"),
-    ({{"field": None}}, 400, "null field"),
-    (None, 400, "missing body"),
+    ({{"aadhaar": "123456789012"}}, 200, "valid 12-digit aadhaar"),
+    ({{"aadhaar": ""}}, 400, "empty aadhaar number"),
+    ({{"aadhaar": "12345"}}, 400, "short aadhaar number"),
+    ({{"aadhaar": None}}, 400, "null aadhaar value"),
+    ({{}}, 400, "missing aadhaar field"),
 ])
-def test_endpoint_variations(client, input_data, expected_status, test_description):
-    \"\"\"Test endpoint with various input scenarios\"\"\"
-    response = client.post('/api/v1/path', json=input_data)
+def test_verify_aadhaar(client, input_data, expected_status, test_description):
+    \"\"\"Test /api/v1/aadhaar/verify endpoint\"\"\"
+    response = client.post('/api/v1/aadhaar/verify', json=input_data)
     assert response.status_code == expected_status, f"Failed for: {{test_description}}"
 ```
 
-Benefits of parameterization:
-- Reduces code duplication
-- Makes it easy to add new test cases
-- Better test organization
-- Each parameter set runs as a separate test
+For each endpoint, create ONE parametrized test with 4-6 test cases covering:
+- Valid input (200 response)
+- Empty/missing required fields (400 response)
+- Invalid data types (400 response)
+- Edge cases (null values, empty objects)
 
-Use parameterization when testing:
-- Multiple valid/invalid input combinations
-- Different error cases (missing fields, wrong types, invalid values)
-- Various edge cases (empty strings, null values, boundary values)
+DO NOT create test functions without @pytest.mark.parametrize decorator.
+DO NOT create separate test functions for each scenario.
+Use parameterization to consolidate all scenarios into one test function per endpoint.
 
-Do not include explanations, just the code. Start directly with imports.
+Output ONLY the code. No explanations. Start with imports.
 """
         
         return prompt
