@@ -81,8 +81,109 @@ def receive_event():
             return {'status': 'error', 'message': 'Failed to broadcast'}, 500
             
     except Exception as e:
-        print(f"[Dashboard] ❌ Error: {e}")
+        print(f"[Dashboard] Error: {e}")
         return {'status': 'error', 'message': str(e)}, 500
+
+@app.route('/view-tests')
+def view_tests():
+    """View generated test file with syntax highlighting"""
+    try:
+        tests_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'tests')
+        
+        # Find the most recent test file
+        test_files = sorted([f for f in os.listdir(tests_dir) if f.startswith('test_aadhaar_api')], reverse=True)
+        
+        if not test_files:
+            return "<html><body style='font-family: Arial; padding: 40px; text-align: center;'><h1>No test files found</h1><a href='/'>Back to Dashboard</a></body></html>", 404
+        
+        test_file = os.path.join(tests_dir, test_files[0])
+        
+        with open(test_file, 'r') as f:
+            code = f.read()
+        
+        # Create HTML with code display
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Generated Tests - {test_files[0]}</title>
+            <style>
+                body {{
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    margin: 0;
+                    padding: 20px;
+                }}
+                .container {{
+                    max-width: 1200px;
+                    margin: 0 auto;
+                    background: white;
+                    border-radius: 10px;
+                    padding: 30px;
+                    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                }}
+                h1 {{
+                    color: #667eea;
+                    margin-top: 0;
+                }}
+                .header {{
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 20px;
+                    padding-bottom: 20px;
+                    border-bottom: 2px solid #667eea;
+                }}
+                .info {{
+                    color: #666;
+                    font-size: 0.9rem;
+                }}
+                .back-btn {{
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    padding: 10px 20px;
+                    border-radius: 6px;
+                    text-decoration: none;
+                    font-weight: 600;
+                }}
+                .back-btn:hover {{
+                    transform: translateY(-2px);
+                    box-shadow: 0 4px 8px rgba(102, 126, 234, 0.4);
+                }}
+                pre {{
+                    background: #f5f5f5;
+                    padding: 20px;
+                    border-radius: 8px;
+                    overflow-x: auto;
+                    border-left: 4px solid #667eea;
+                }}
+                code {{
+                    font-family: 'Courier New', monospace;
+                    font-size: 0.9rem;
+                    line-height: 1.6;
+                    color: #333;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <div>
+                        <h1>Generated Test File</h1>
+                        <div class="info">File: {test_files[0]} | Lines: {len(code.split(chr(10)))}</div>
+                    </div>
+                    <a href="/" class="back-btn">Back to Dashboard</a>
+                </div>
+                <pre><code>{code}</code></pre>
+            </div>
+        </body>
+        </html>
+        """
+        
+        return html, 200
+        
+    except Exception as e:
+        return f"<html><body style='font-family: Arial; padding: 40px;'><h1>Error loading test file</h1><p>{str(e)}</p><a href='/'>Back to Dashboard</a></body></html>", 500
 
 @app.route('/events')
 def stream():
@@ -142,32 +243,161 @@ def health():
 
 @app.route('/coverage-report')
 def coverage_report():
-    """Serve coverage report with proper styling"""
+    """Serve coverage report with modern dashboard styling"""
     try:
         htmlcov_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'htmlcov')
         index_path = os.path.join(htmlcov_path, 'index.html')
         
         if os.path.exists(index_path):
-            # Read and serve with cache control
+            # Read original coverage HTML
             with open(index_path, 'r', encoding='utf-8') as f:
                 content = f.read()
             
-            # Inject custom styling to fix broken UI
+            # Inject modern dashboard-matching CSS
             custom_css = """
             <style>
-            body { font-family: Arial, sans-serif !important; }
-            #header { background: #667eea !important; padding: 20px !important; }
-            #header h1 { color: white !important; }
-            table { width: 100% !important; border-collapse: collapse !important; }
-            table th { background: #764ba2 !important; color: white !important; padding: 10px !important; }
-            table td { padding: 8px !important; border-bottom: 1px solid #ddd !important; }
-            .pc_cov { font-weight: bold !important; }
+            /* Reset and modern styles */
+            * { box-sizing: border-box; }
+            body { 
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+                margin: 0 !important;
+                padding: 20px !important;
+            }
+            
+            /* Main container */
+            #header, #contents, #index {
+                max-width: 1200px;
+                margin: 0 auto 20px auto !important;
+                background: white !important;
+                border-radius: 10px !important;
+                padding: 30px !important;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1) !important;
+            }
+            
+            /* Header section */
+            #header {
+                background: white !important;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border-bottom: 2px solid #667eea !important;
+            }
+            
+            #header h1 { 
+                color: #667eea !important;
+                margin: 0 !important;
+                font-size: 2rem !important;
+                font-weight: 600 !important;
+            }
+            
+            #header .back-link {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white !important;
+                padding: 10px 20px;
+                border-radius: 6px;
+                text-decoration: none !important;
+                font-weight: 600;
+                display: inline-block;
+            }
+            
+            #header .back-link:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 8px rgba(102, 126, 234, 0.4);
+            }
+            
+            /* Table styling */
+            table { 
+                width: 100% !important;
+                border-collapse: collapse !important;
+                margin-top: 20px !important;
+            }
+            
+            table thead tr {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+            }
+            
+            table th { 
+                background: transparent !important;
+                color: white !important;
+                padding: 12px !important;
+                font-weight: 600 !important;
+                text-align: left !important;
+            }
+            
+            table td { 
+                padding: 12px !important;
+                border-bottom: 1px solid #e0e0e0 !important;
+            }
+            
+            table tr:hover {
+                background: #f5f5f5 !important;
+            }
+            
+            /* Coverage percentage */
+            .pc_cov { 
+                font-weight: bold !important;
+                padding: 4px 8px !important;
+                border-radius: 4px !important;
+            }
+            
+            /* Color coding for coverage */
+            .pc_cov[style*="rgb(0, 255, 0)"],
+            .pc_cov[style*="background: #00ff00"] {
+                background: #4caf50 !important;
+                color: white !important;
+            }
+            
+            .pc_cov[style*="rgb(255, 255, 0)"],
+            .pc_cov[style*="background: #ffff00"] {
+                background: #ff9800 !important;
+                color: white !important;
+            }
+            
+            .pc_cov[style*="rgb(255, 0, 0)"],
+            .pc_cov[style*="background: #ff0000"] {
+                background: #f44336 !important;
+                color: white !important;
+            }
+            
+            /* Links */
+            a { color: #667eea !important; text-decoration: none !important; }
+            a:hover { text-decoration: underline !important; }
+            
+            /* Buttons */
+            button, .button {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white !important;
+                border: none !important;
+                padding: 8px 16px !important;
+                border-radius: 6px !important;
+                cursor: pointer !important;
+                font-weight: 600 !important;
+            }
+            
+            button:hover, .button:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 8px rgba(102, 126, 234, 0.4);
+            }
             </style>
             """
             
             # Inject before </head>
             if '</head>' in content:
                 content = content.replace('</head>', custom_css + '</head>')
+            
+            # Add back to dashboard link in header
+            if '<h1>' in content:
+                content = content.replace(
+                    '<h1>',
+                    '<h1 style="flex: 1;">'
+                )
+                # Add back button after h1
+                content = content.replace(
+                    '</h1>',
+                    '</h1><a href="/" class="back-link">Back to Dashboard</a>',
+                    1  # Only first occurrence
+                )
             
             response = app.response_class(
                 response=content,
@@ -184,17 +414,46 @@ def coverage_report():
                 <html>
                 <head>
                     <style>
-                        body { font-family: Arial; padding: 40px; text-align: center; background: #f5f5f5; }
-                        .container { background: white; padding: 40px; border-radius: 10px; max-width: 600px; margin: 0 auto; }
-                        h1 { color: #667eea; }
-                        a { color: #667eea; text-decoration: none; font-weight: bold; }
+                        body { 
+                            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                            margin: 0;
+                            padding: 40px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            min-height: 100vh;
+                        }
+                        .container { 
+                            background: white;
+                            padding: 40px;
+                            border-radius: 10px;
+                            max-width: 600px;
+                            text-align: center;
+                            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                        }
+                        h1 { color: #667eea; margin-top: 0; }
+                        a { 
+                            display: inline-block;
+                            margin-top: 20px;
+                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                            color: white;
+                            padding: 12px 24px;
+                            border-radius: 6px;
+                            text-decoration: none;
+                            font-weight: 600;
+                        }
+                        a:hover {
+                            transform: translateY(-2px);
+                            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.4);
+                        }
                     </style>
                 </head>
                 <body>
                     <div class="container">
-                        <h1>⚠️ Coverage Report Not Generated Yet</h1>
+                        <h1>Coverage Report Not Generated Yet</h1>
                         <p>Run POC first to generate coverage report</p>
-                        <p><a href="/">← Back to Dashboard</a></p>
+                        <a href="/">Back to Dashboard</a>
                     </div>
                 </body>
                 </html>
@@ -202,10 +461,45 @@ def coverage_report():
     except Exception as e:
         return f"""
             <html>
-            <body style="font-family: Arial; padding: 40px; text-align: center;">
-                <h1>Error Loading Coverage Report</h1>
-                <p>{str(e)}</p>
-                <a href="/">← Back to Dashboard</a>
+            <head>
+                <style>
+                    body {{
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        margin: 0;
+                        padding: 40px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        min-height: 100vh;
+                    }}
+                    .container {{
+                        background: white;
+                        padding: 40px;
+                        border-radius: 10px;
+                        max-width: 600px;
+                        text-align: center;
+                        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                    }}
+                    h1 {{ color: #f44336; margin-top: 0; }}
+                    a {{
+                        display: inline-block;
+                        margin-top: 20px;
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white;
+                        padding: 12px 24px;
+                        border-radius: 6px;
+                        text-decoration: none;
+                        font-weight: 600;
+                    }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <h1>Error Loading Coverage Report</h1>
+                    <p>{str(e)}</p>
+                    <a href="/">Back to Dashboard</a>
+                </div>
             </body>
             </html>
         """, 500
