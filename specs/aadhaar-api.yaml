@@ -92,37 +92,4 @@ paths:
         '403':
           description: Consent not provided
 
-  /aadhaar/otp/generate:
-    post:
-      summary: Generate OTP for Aadhaar
-      description: Sends OTP to registered mobile for verification
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                aadhaar_number:
-                  type: string
-                  pattern: '^[0-9]{12}$'
-              required:
-                - aadhaar_number
-      responses:
-        '200':
-          description: OTP sent successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  transaction_id:
-                    type: string
-                  message:
-                    type: string
-        '400':
-          description: Invalid Aadhaar number
-        '429':
-          description: Rate limit exceeded.
-# Demo update: Thu Oct 16 14:17:11 IST 2025
-# Demo update: Thu Oct 16 14:20:44 IST 2025
+  
