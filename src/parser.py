@@ -17,8 +17,8 @@ class OpenAPIParser:
         """Get base URL from spec"""
         servers = self.spec.get('servers', [])
         if servers:
-            return servers[0].get('url', 'http://localhost:5000')
-        return 'http://localhost:5000'
+            return servers[0].get('url', 'http://localhost:5001')
+        return 'http://localhost:5001'
     
     def get_endpoints(self) -> List[Dict[str, Any]]:
         """Extract all endpoints with details"""

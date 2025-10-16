@@ -44,7 +44,7 @@ jobs:
     
     - name: Verify API is running
       run: |
-        curl -f http://localhost:5000/health || (cat api/api.log && exit 1)
+        curl -f http://localhost:5001/health || (cat api/api.log && exit 1)
         echo "✅ API is running"
     
     - name: Run tests with coverage
