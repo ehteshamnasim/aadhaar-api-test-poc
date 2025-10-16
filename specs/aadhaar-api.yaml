@@ -80,7 +80,7 @@ paths:
                 type: object
                 properties:
                   name:
-                    type: string
+                    type: boolean
                   dob:
                     type: string
                   gender:
