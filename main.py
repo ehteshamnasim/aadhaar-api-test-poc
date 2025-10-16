@@ -391,21 +391,23 @@ class POCOrchestrator:
             raise Exception("Code validation failed")
     
     def save_test_file_with_header(self, test_code: str, parsed_spec: dict):
-        """Save test file with header and required fixtures"""
+        """Save test file with header and FORCE required code"""
         filename = self._get_test_filename()
         self.test_file_path = os.path.join(self.output_dir, filename)
         
-        print(f"   💾 Saving to: {filename}")
+        print(f"\n💾 Saving to: {filename}")
         
-        # Deduplicate
+        # Deduplicate tests
         unique_tests = self._deduplicate_tests(test_code)
         self.unique_test_count = len(unique_tests)
+        
+        print(f"   ✓ Deduplicated: {self.unique_test_count} unique tests")
         
         # Create header
         header = self._create_file_header(parsed_spec)
         
-        # FORCED TEMPLATE - Always include these
-        required_code = f'''
+        # CRITICAL FIX: Force template with BASE_URL and fixtures
+        forced_template = f'''
     import pytest
     import requests
 
@@ -425,21 +427,35 @@ class POCOrchestrator:
             yield s
 
 
+    @pytest.fixture(scope="session", autouse=True)
+    def verify_api_running():
+        """Verify API is accessible before running tests"""
+        try:
+            response = requests.get(BASE_URL.replace('/api/v1', '/health'), timeout=5)
+            assert response.status_code == 200
+            print("\\n✅ API is running and accessible")
+        except Exception as e:
+            pytest.fail(f"❌ API not accessible: {{e}}")
+
+
     # ==================== TEST CASES ====================
 
     '''
         
-        # Construct final file
-        final_code = header + required_code
+        # Build final file
+        final_code = header + forced_template
         
         for test_name in sorted(unique_tests.keys()):
             final_code += unique_tests[test_name] + '\n\n'
         
-        # Save
+        # Save file
         with open(self.test_file_path, 'w', encoding='utf-8') as f:
             f.write(final_code)
         
-        print(f"   ✅ Saved {self.unique_test_count} tests with fixtures")
+        print(f"   ✓ Saved with BASE_URL and fixtures")
+        print(f"   ✓ Total: {self.unique_test_count} tests")
+
+
     def _deduplicate_tests(self, test_code: str) -> Dict[str, str]:
         """Remove duplicate test functions, keeping first occurrence"""
         test_functions = {}
@@ -565,47 +581,60 @@ Each endpoint is tested with multiple scenarios:
         return header
     
     def run_tests_with_detailed_capture(self):
-        """Execute tests and capture detailed results"""
-        print("   🧪 Checking API availability...")
+        """Execute tests with detailed capture"""
+        print("\n🧪 Running tests...")
         
-        # Pre-flight check
+        # ADDED: Verify file exists
+        if not os.path.exists(self.test_file_path):
+            print(f"   ❌ Test file not found: {self.test_file_path}")
+            self._create_error_results("Test file not found")
+            return
+        
+        print(f"   📝 Test file: {self.test_file_path}")
+        
+        # ADDED: Check API first
+        print("   🔍 Checking API...")
         api_available, api_url = self._check_api_health()
         
         if not api_available:
             print(f"   ❌ API not accessible at {api_url}")
-            print("   ⚠️  Tests will fail - please start the API:")
-            print(f"      python3 api/dummy_aadhaar_api.py")
-            
-            # Create failure records
+            print("   💡 Start API with: python3 api/dummy_aadhaar_api.py")
             self._create_api_unavailable_results()
             return
         
-        print(f"   ✅ API is accessible at {api_url}")
-        print("   🏃 Running tests...")
+        print(f"   ✅ API accessible at {api_url}")
+        
+        # ADDED: Show what we're about to run
+        print(f"   🏃 Executing: pytest {self.test_file_path} -v")
         
         try:
-            # Run pytest
             result = subprocess.run(
                 ['pytest', self.test_file_path, '-v', '--tb=short', '-s'],
                 capture_output=True,
                 text=True,
-                timeout=TEST_EXECUTION_TIMEOUT,
+                timeout=120,
                 cwd=os.path.dirname(os.path.abspath(__file__))
             )
             
             output = result.stdout + '\n' + result.stderr
             
+            # ADDED: Show pytest output
+            print("\n   📋 Pytest output:")
+            print("   " + "="*60)
+            for line in output.split('\n')[:20]:
+                if line.strip():
+                    print(f"   {line}")
+            print("   " + "="*60)
+            
             # Parse results
             self._parse_pytest_output(output)
             
-            # Verify parsing succeeded
+            # Fallback if parsing failed
             if self.passed_tests == 0 and self.failed_tests == 0 and self.unique_test_count > 0:
-                print("   ⚠️  Standard parsing failed, using fallback...")
+                print("   ⚠️  Parsing failed, using fallback...")
                 self._fallback_parse(output)
             
-            # Print summary
-            total = self.passed_tests + self.failed_tests + self.skipped_tests
-            print(f"\n   📊 Results: {self.passed_tests} passed, {self.failed_tests} failed, {self.skipped_tests} skipped (total: {total})")
+            print(f"\n   📊 Results: {self.passed_tests} passed, {self.failed_tests} failed")
             
             # Send to dashboard
             send_event('execute', {
@@ -616,21 +645,16 @@ Each endpoint is tested with multiple scenarios:
                 'details': [d.to_dict() for d in self.test_details]
             })
             
-            # Print test details
+            # ADDED: Print details
             if self.test_details:
                 print("\n   📋 Test Details:")
-                for detail in self.test_details[:5]:
+                for detail in self.test_details:
                     icon = "✅" if detail.passed else "❌"
                     print(f"      {icon} {detail.name}")
-                    print(f"         {detail.reason[:80]}")
-                
-                if len(self.test_details) > 5:
-                    print(f"      ... and {len(self.test_details) - 5} more (see dashboard)")
-        
-        except subprocess.TimeoutExpired:
-            print(f"   ❌ Test execution timeout ({TEST_EXECUTION_TIMEOUT}s)")
-            self._create_timeout_results()
             
+        except subprocess.TimeoutExpired:
+            print("   ❌ Test execution timeout")
+            self._create_timeout_results()
         except Exception as e:
             print(f"   ❌ Test execution error: {e}")
             self._create_error_results(str(e))
