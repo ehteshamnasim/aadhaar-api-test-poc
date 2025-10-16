@@ -1,7 +1,7 @@
 import ast
 import subprocess
 import sys
-from typing import Tuple
+from typing import Dict, Tuple
 
 class CodeValidator:
     """Validate generated test code"""

@@ -40,9 +40,11 @@ function updateCoverage(percentage) {
 // Update badge status
 function updateBadge(elementId, status) {
     const element = document.getElementById(elementId);
+    if (!element) return;
+    
     element.className = 'badge';
     
-    if (status === 'success' || status === 'passed') {
+    if (status === 'success' || status === 'passed' || status === 'completed') {
         element.style.background = '#4caf50';
         element.style.color = 'white';
         element.textContent = '✓ Passed';
@@ -57,10 +59,11 @@ function updateBadge(elementId, status) {
     } else {
         element.style.background = '#e0e0e0';
         element.style.color = '#666';
-        element.textContent = status;
+        element.textContent = status || 'Pending';
     }
 }
 
+// Handle SSE events
 // Handle SSE events
 eventSource.onmessage = function(event) {
     const data = JSON.parse(event.data);
@@ -74,17 +77,22 @@ eventSource.onmessage = function(event) {
             break;
             
         case 'parse':
-            document.getElementById('spec-file').textContent = data.file;
-            document.getElementById('endpoint-count').textContent = data.endpoints;
+            document.getElementById('spec-file').textContent = data.file || 'specs/aadhaar-api.yaml';
+            document.getElementById('endpoint-count').textContent = data.endpoints || 0;
             updateBadge('parse-status', 'success');
-            addLog(`Parsed ${data.endpoints} endpoints`, 'success');
+            addLog(`Parsed ${data.endpoints || 0} endpoints`, 'success');
             break;
             
         case 'generate':
-            document.getElementById('gen-progress').style.width = data.progress + '%';
-            document.getElementById('tests-generated').textContent = data.count;
-            updateBadge('gen-status', data.status);
-            addLog(data.message, 'success');
+            const progress = data.progress || 0;
+            document.getElementById('gen-progress').style.width = progress + '%';
+            document.getElementById('tests-generated').textContent = data.count || 0;
+            updateBadge('gen-status', data.status || 'running');
+            
+            // Add detailed message to log
+            if (data.message) {
+                addLog(data.message, data.status === 'success' ? 'success' : 'info');
+            }
             break;
             
         case 'validate':
@@ -95,33 +103,50 @@ eventSource.onmessage = function(event) {
             break;
             
         case 'execute':
-            document.getElementById('tests-passed').textContent = data.passed;
-            document.getElementById('tests-failed').textContent = data.failed;
-            document.getElementById('tests-total').textContent = data.total;
-            addLog(`Tests: ${data.passed}/${data.total} passed`, data.failed === 0 ? 'success' : 'error');
+            document.getElementById('tests-passed').textContent = data.passed || 0;
+            document.getElementById('tests-failed').textContent = data.failed || 0;
+            document.getElementById('tests-total').textContent = data.total || 0;
+            
+            const statusText = data.status === 'running' ? 'Running...' : 
+                             `${data.passed || 0}/${data.total || 0} passed`;
+            addLog(`Tests: ${statusText}`, 
+                   data.failed === 0 && data.status === 'completed' ? 'success' : 
+                   data.status === 'running' ? 'info' : 'error');
             break;
             
         case 'coverage':
-            updateCoverage(data.percentage);
-            addLog(`Coverage: ${data.percentage}%`, data.percentage >= 85 ? 'success' : 'info');
+            const percentage = data.percentage || 0;
+            updateCoverage(percentage);
+            
+            if (data.status === 'running') {
+                addLog('Calculating coverage...', 'info');
+            } else if (data.status === 'completed') {
+                addLog(`Coverage: ${percentage}%`, percentage >= 85 ? 'success' : 'info');
+            }
             break;
             
         case 'contract':
-            document.getElementById('contracts-tested').textContent = data.total;
-            document.getElementById('contracts-passed').textContent = data.passed;
-            document.getElementById('contracts-failed').textContent = data.failed;
-            addLog(`Contract tests: ${data.passed}/${data.total} passed`, data.failed === 0 ? 'success' : 'error');
+            document.getElementById('contracts-tested').textContent = data.total || 0;
+            document.getElementById('contracts-passed').textContent = data.passed || 0;
+            document.getElementById('contracts-failed').textContent = data.failed || 0;
+            
+            if (data.status === 'running') {
+                addLog(`Running contract tests for ${data.total || 0} endpoints...`, 'info');
+            } else if (data.status === 'completed') {
+                addLog(`Contract tests: ${data.passed || 0}/${data.total || 0} passed`, 
+                       data.failed === 0 ? 'success' : 'error');
+            }
             break;
             
         case 'git':
             document.getElementById('git-repo').textContent = 'Initialized';
             updateBadge('git-commit', data.committed ? 'success' : 'pending');
-            addLog(data.message, 'success');
+            addLog(data.message, data.committed ? 'success' : 'info');
             break;
             
         case 'cicd':
             updateBadge('cicd-status', data.status);
-            document.getElementById('build-status').textContent = data.build;
+            document.getElementById('build-status').textContent = data.build || '-';
             addLog(data.message, data.status === 'success' ? 'success' : 'info');
             break;
             

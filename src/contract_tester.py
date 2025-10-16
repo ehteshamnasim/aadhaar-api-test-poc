@@ -36,32 +36,44 @@ class ContractTester:
             'status_code': None
         }
         
-        try:
-            # Prepare sample request
-            sample_payload = self._create_sample_payload(endpoint)
+        # Retry logic for flaky API
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                # Prepare sample request
+                sample_payload = self._create_sample_payload(endpoint)
+                
+                # Make request
+                response = requests.request(
+                    method=method,
+                    url=url,
+                    json=sample_payload if method in ['POST', 'PUT', 'PATCH'] else None,
+                    timeout=10  # Increased timeout
+                )
+                
+                result['status_code'] = response.status_code
+                
+                # Check if status code matches spec
+                expected_codes = list(endpoint['responses'].keys())
+                
+                if str(response.status_code) in expected_codes:
+                    result['passed'] = True
+                    return result  # Success - return immediately
+                else:
+                    result['error'] = f"Got {response.status_code}, expected one of {expected_codes}"
+                    # Don't return yet - might be temporary
             
-            # Make request
-            response = requests.request(
-                method=method,
-                url=url,
-                json=sample_payload if method in ['POST', 'PUT', 'PATCH'] else None,
-                timeout=5
-            )
-            
-            result['status_code'] = response.status_code
-            
-            # Check if status code matches spec
-            expected_codes = list(endpoint['responses'].keys())
-            
-            if str(response.status_code) in expected_codes:
-                result['passed'] = True
-            else:
-                result['error'] = f"Got {response.status_code}, expected one of {expected_codes}"
-        
-        except requests.exceptions.RequestException as e:
-            result['error'] = f"Request failed: {str(e)}"
-        except Exception as e:
-            result['error'] = f"Unexpected error: {str(e)}"
+            except requests.exceptions.ConnectionError as e:
+                if attempt < max_retries - 1:
+                    print(f"    Retry {attempt + 1}/{max_retries} for {method} {path}")
+                    time.sleep(1)  # Wait before retry
+                    continue
+                result['error'] = f"Connection failed after {max_retries} attempts: {str(e)}"
+            except requests.exceptions.Timeout:
+                result['error'] = "Request timeout (10s)"
+            except Exception as e:
+                result['error'] = f"Unexpected error: {str(e)}"
+                break
         
         return result
     

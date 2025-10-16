@@ -1,6 +1,6 @@
 import subprocess
 from datetime import datetime
-from typing import Tuple
+from typing import Dict, Tuple
 
 class GitCommitter:
     """Auto-commit generated tests to Git"""

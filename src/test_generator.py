@@ -7,7 +7,7 @@ class TestGenerator:
     
     def __init__(self, ollama_url: str = "http://localhost:11434"):
         self.ollama_url = ollama_url
-        self.model = "llama3:70b"
+        self.model = "qwen2.5-coder:14b"
     
     def generate_tests(self, parsed_spec: Dict) -> str:
         """Generate complete test file from parsed spec"""
