@@ -154,12 +154,33 @@ eventSource.onmessage = function (event) {
       addLog(data.message, data.overall ? 'success' : 'error');
       break;
 
- case 'execute':
-    document.getElementById('tests-passed').textContent = data.passed || 0;
-    document.getElementById('tests-failed').textContent = data.failed || 0;
-    document.getElementById('tests-total').textContent = data.total || 0;
+// Enhanced event handling for complete solution
+
+case 'execute':
+    // FIXED: Proper handling of all test counts
+    const passed = data.passed || 0;
+    const failed = data.failed || 0;
+    const skipped = data.skipped || 0;
+    const total = data.total || 0;
     
-    // FIXED: Show test details
+    document.getElementById('tests-passed').textContent = passed;
+    document.getElementById('tests-failed').textContent = failed;
+    document.getElementById('tests-total').textContent = total;
+    
+    // Show skipped if present
+    const skippedEl = document.getElementById('tests-skipped');
+    if (skippedEl) {
+        skippedEl.textContent = skipped;
+        skippedEl.style.display = skipped > 0 ? 'block' : 'none';
+    }
+    
+    // Validate counts
+    const calculatedTotal = passed + failed + skipped;
+    if (calculatedTotal !== total && total > 0) {
+        console.warn(`Count mismatch: ${passed}+${failed}+${skipped}=${calculatedTotal} but total=${total}`);
+    }
+    
+    // Show test details
     if (data.details && data.details.length > 0) {
         const detailsCard = document.getElementById('test-details-card');
         if (detailsCard) {
@@ -187,12 +208,15 @@ eventSource.onmessage = function (event) {
                 detailsList.appendChild(detailDiv);
             });
             
-            addLog(`Test details: ${data.passed} passed, ${data.failed} failed`, data.failed === 0 ? 'success' : 'error');
+            addLog(`Test execution: ${passed} passed, ${failed} failed`, failed === 0 ? 'success' : 'error');
+        }
+    } else {
+        const detailsCard = document.getElementById('test-details-card');
+        if (detailsCard) {
+            detailsCard.style.display = 'none';
         }
     }
     
-    const statusText = `Tests: ${data.passed || 0}/${data.total || 0} passed`;
-    addLog(statusText, data.failed === 0 ? 'success' : 'error');
     break;
 case 'clear':
     // Clear test details when resetting
