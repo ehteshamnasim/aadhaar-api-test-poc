@@ -22,10 +22,13 @@
                 <span class="status-label">Last Update:</span>
                 <span id="timestamp" class="status-value">-</span>
             </div>
+            <div class="status-item">
+                <button id="reset-btn" class="reset-button" onclick="resetDashboard()">🔄 Reset Dashboard</button>
+            </div>
         </div>
 
         <div class="grid">
-            <!-- Parsing Section -->
+            <!-- API Specification -->
             <div class="card">
                 <div class="card-header">
                     <h2>📄 API Specification</h2>
@@ -46,7 +49,7 @@
                 </div>
             </div>
 
-            <!-- Generation Section -->
+            <!-- Test Generation -->
             <div class="card">
                 <div class="card-header">
                     <h2>🤖 Test Generation</h2>
@@ -66,7 +69,7 @@
                 </div>
             </div>
 
-            <!-- Validation Section -->
+            <!-- Code Validation -->
             <div class="card">
                 <div class="card-header">
                     <h2>✓ Code Validation</h2>
@@ -87,7 +90,7 @@
                 </div>
             </div>
 
-            <!-- Execution Section -->
+            <!-- Test Execution -->
             <div class="card">
                 <div class="card-header">
                     <h2>🧪 Test Execution</h2>
@@ -108,7 +111,7 @@
                 </div>
             </div>
 
-            <!-- Coverage Section -->
+            <!-- Code Coverage -->
             <div class="card">
                 <div class="card-header">
                     <h2>📊 Code Coverage</h2>
@@ -131,7 +134,7 @@
                 </div>
             </div>
 
-            <!-- Contract Testing Section -->
+            <!-- Contract Testing -->
             <div class="card">
                 <div class="card-header">
                     <h2>📋 Contract Testing</h2>
@@ -152,7 +155,7 @@
                 </div>
             </div>
 
-            <!-- Git Section -->
+            <!-- Git Status -->
             <div class="card">
                 <div class="card-header">
                     <h2>🔗 Git Status</h2>
@@ -166,10 +169,14 @@
                         <span class="stat-label">Commit:</span>
                         <span id="git-commit" class="badge">Pending</span>
                     </div>
+                    <div class="stat">
+                        <span class="stat-label">Push:</span>
+                        <span id="git-push" class="badge">Pending</span>
+                    </div>
                 </div>
             </div>
 
-            <!-- CI/CD Section -->
+            <!-- CI/CD Status -->
             <div class="card">
                 <div class="card-header">
                     <h2>🚀 CI/CD Status</h2>
@@ -185,44 +192,44 @@
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Comparison Section -->
-<div class="comparison-section" style="display: none;" id="comparison-section">
-    <h2>📊 Before vs After AI</h2>
-    <div class="comparison-grid">
-        <div class="comparison-card">
-            <h3>📉 Before AI</h3>
-            <div class="metric">
-                <span class="metric-label">Manual Effort:</span>
-                <span id="before-effort" class="metric-value">-</span>
+        <!-- Comparison Section -->
+        <div class="comparison-section" style="display: none;" id="comparison-section">
+            <h2>📊 Before vs After AI</h2>
+            <div class="comparison-grid">
+                <div class="comparison-card">
+                    <h3>📉 Before AI</h3>
+                    <div class="metric">
+                        <span class="metric-label">Manual Effort:</span>
+                        <span id="before-effort" class="metric-value">-</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Test Cases:</span>
+                        <span id="before-tests" class="metric-value">0</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Coverage:</span>
+                        <span id="before-coverage" class="metric-value">0%</span>
+                    </div>
+                </div>
+                
+                <div class="comparison-card highlight">
+                    <h3>📈 After AI</h3>
+                    <div class="metric">
+                        <span class="metric-label">Generation Time:</span>
+                        <span id="after-time" class="metric-value">-</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Test Cases:</span>
+                        <span id="after-tests" class="metric-value">-</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Lines of Code:</span>
+                        <span id="after-lines" class="metric-value">-</span>
+                    </div>
+                </div>
             </div>
-            <div class="metric">
-                <span class="metric-label">Test Cases:</span>
-                <span id="before-tests" class="metric-value">0</span>
-            </div>
-            <div class="metric">
-                <span class="metric-label">Coverage:</span>
-                <span id="before-coverage" class="metric-value">0%</span>
-            </div>
-        </div>
-        
-        <div class="comparison-card highlight">
-            <h3>📈 After AI</h3>
-            <div class="metric">
-                <span class="metric-label">Generation Time:</span>
-                <span id="after-time" class="metric-value">-</span>
-            </div>
-            <div class="metric">
-                <span class="metric-label">Test Cases:</span>
-                <span id="after-tests" class="metric-value">-</span>
-            </div>
-            <div class="metric">
-                <span class="metric-label">Lines of Code:</span>
-                <span id="after-lines" class="metric-value">-</span>
-            </div>
-        </div>
-    </div>
-</div>
         </div>
 
         <div class="actions">

@@ -1,4 +1,4 @@
-name: AI-Generated Tests CI
+name: AI-Generated Tests CI/CD
 
 on:
   push:
@@ -22,6 +22,14 @@ jobs:
       with:
         python-version: '3.10'
     
+    - name: Cache dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
@@ -31,39 +39,60 @@ jobs:
       run: |
         cd api
         nohup python dummy_aadhaar_api.py > api.log 2>&1 &
+        echo $! > api.pid
         sleep 5
-        curl http://localhost:5000/health || (cat api.log && exit 1)
     
-    - name: Run tests
+    - name: Verify API is running
       run: |
-        pytest tests/ -v --cov=api --cov-report=html --cov-report=term --cov-report=json
+        curl -f http://localhost:5000/health || (cat api/api.log && exit 1)
+        echo "✅ API is running"
+    
+    - name: Run tests with coverage
+      run: |
+        pytest tests/ -v --cov=api --cov-report=html --cov-report=term --cov-report=json --cov-report=xml
+      continue-on-error: false
     
     - name: Check coverage threshold
       run: |
-        COVERAGE=$(python -c "import json; print(json.load(open('coverage.json'))['totals']['percent_covered'])")
-        echo "Coverage: $COVERAGE%"
-        if (( $(echo "$COVERAGE < 85" | bc -l) )); then
-          echo "❌ Coverage $COVERAGE% is below 85% threshold"
-          exit 1
-        fi
-        echo "✅ Coverage $COVERAGE% meets threshold"
+        python << EOF
+        import json
+        with open('coverage.json') as f:
+            data = json.load(f)
+            coverage = data['totals']['percent_covered']
+            print(f"Coverage: {coverage}%")
+            if coverage < 85:
+                print(f"❌ Coverage {coverage}% is below 85% threshold")
+                exit(1)
+            else:
+                print(f"✅ Coverage {coverage}% meets threshold")
+        EOF
     
-    - name: Upload coverage report
+    - name: Upload coverage HTML report
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: coverage-report
+        name: coverage-html-report
         path: htmlcov/
+        retention-days: 30
+    
+    - name: Upload coverage data
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: coverage-data
+        path: |
+          coverage.json
+          coverage.xml
+          .coverage
         retention-days: 30
     
     - name: Upload test results
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: test-results
+        name: pytest-results
         path: |
-          coverage.json
-          .coverage
+          tests/
         retention-days: 30
     
     - name: Comment PR with results
@@ -72,25 +101,57 @@ jobs:
       with:
         script: |
           const fs = require('fs');
-          const coverage = JSON.parse(fs.readFileSync('coverage.json', 'utf8'));
-          const percentage = coverage.totals.percent_covered.toFixed(1);
-          const passed = '✅';
-          const failed = '❌';
-          const status = percentage >= 85 ? passed : failed;
           
-          const body = `## 🤖 AI-Generated Test Results
-          
-          ${status} **Coverage: ${percentage}%** (Target: 85%)
-          
-          - Lines covered: ${coverage.totals.covered_lines}/${coverage.totals.num_statements}
-          - Missing lines: ${coverage.totals.missing_lines}
-          
-          [View Full Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
-          `;
-          
-          github.rest.issues.createComment({
-            issue_number: context.issue.number,
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            body: body
-          });
+          try {
+            const coverage = JSON.parse(fs.readFileSync('coverage.json', 'utf8'));
+            const percentage = coverage.totals.percent_covered.toFixed(1);
+            const passed = percentage >= 85 ? '✅' : '❌';
+            
+            const body = `## 🤖 AI-Generated Test Results
+            
+            ${passed} **Coverage: ${percentage}%** (Target: ≥85%)
+            
+            **Test Statistics:**
+            - Lines covered: ${coverage.totals.covered_lines}/${coverage.totals.num_statements}
+            - Missing lines: ${coverage.totals.missing_lines}
+            - Branches: ${coverage.totals.covered_branches}/${coverage.totals.num_branches}
+            
+            **Build Information:**
+            - Run: [#${context.runNumber}](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})
+            - Commit: ${context.sha.substring(0, 7)}
+            - Branch: ${context.ref.replace('refs/heads/', '')}
+            
+            [📊 View Full Coverage Report](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})
+            `;
+            
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+          } catch (error) {
+            console.log('Could not post comment:', error.message);
+          }
+    
+    - name: Stop API
+      if: always()
+      run: |
+        if [ -f api/api.pid ]; then
+          kill $(cat api/api.pid) || true
+        fi
+    
+    - name: Generate summary
+      if: always()
+      run: |
+        echo "### 🧪 Test Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ -f coverage.json ]; then
+          COVERAGE=$(python -c "import json; print(json.load(open('coverage.json'))['totals']['percent_covered'])")
+          echo "- Coverage: **${COVERAGE}%**" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "- Status: ✅ Pipeline completed" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "📊 [View detailed report in artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY

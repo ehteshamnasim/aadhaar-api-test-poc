@@ -29,6 +29,7 @@ wheels/
 htmlcov/
 .tox/
 .hypothesis/
+tests/.spec_hash
 
 # IDE
 .vscode/

@@ -1,4 +1,4 @@
-// Connect to Server-Sent Events for real-time updates
+// SSE Connection
 const eventSource = new EventSource('/events');
 
 // Update timestamp
@@ -56,6 +56,10 @@ function updateBadge(elementId, status) {
         element.style.background = '#2196f3';
         element.style.color = 'white';
         element.textContent = '⋯ Running';
+    } else if (status === 'triggered') {
+        element.style.background = '#ff9800';
+        element.style.color = 'white';
+        element.textContent = '🚀 Triggered';
     } else {
         element.style.background = '#e0e0e0';
         element.style.color = '#666';
@@ -63,14 +67,63 @@ function updateBadge(elementId, status) {
     }
 }
 
-// Handle SSE events
+// Reset dashboard
+function resetDashboard() {
+    if (!confirm('Reset dashboard? This will clear all current data.')) {
+        return;
+    }
+    
+    // Reset all values
+    document.getElementById('spec-file').textContent = '-';
+    document.getElementById('endpoint-count').textContent = '0';
+    document.getElementById('tests-generated').textContent = '0';
+    document.getElementById('tests-passed').textContent = '0';
+    document.getElementById('tests-failed').textContent = '0';
+    document.getElementById('tests-total').textContent = '0';
+    document.getElementById('contracts-tested').textContent = '0';
+    document.getElementById('contracts-passed').textContent = '0';
+    document.getElementById('contracts-failed').textContent = '0';
+    document.getElementById('git-repo').textContent = '-';
+    document.getElementById('build-status').textContent = '-';
+    
+    // Reset badges
+    updateBadge('parse-status', 'Pending');
+    updateBadge('gen-status', 'Pending');
+    updateBadge('syntax-check', 'Pending');
+    updateBadge('import-check', 'Pending');
+    updateBadge('validation-status', 'Pending');
+    updateBadge('git-commit', 'Pending');
+    updateBadge('git-push', 'Pending');
+    updateBadge('cicd-status', 'Not Started');
+    
+    // Reset progress
+    document.getElementById('gen-progress').style.width = '0%';
+    
+    // Reset coverage
+    updateCoverage(0);
+    
+    // Hide comparison
+    document.getElementById('comparison-section').style.display = 'none';
+    
+    // Clear log
+    document.getElementById('log').innerHTML = '';
+    
+    // Reset status
+    document.getElementById('status').textContent = 'Dashboard reset';
+    
+    addLog('Dashboard reset - ready for new POC run', 'info');
+}
+
 // Handle SSE events
 eventSource.onmessage = function(event) {
     const data = JSON.parse(event.data);
     updateTimestamp();
     
-    // Update based on event type
     switch(data.type) {
+        case 'connected':
+            addLog('Connected to dashboard', 'info');
+            break;
+            
         case 'status':
             document.getElementById('status').textContent = data.message;
             addLog(data.message, 'info');
@@ -89,7 +142,6 @@ eventSource.onmessage = function(event) {
             document.getElementById('tests-generated').textContent = data.count || 0;
             updateBadge('gen-status', data.status || 'running');
             
-            // Add detailed message to log
             if (data.message) {
                 addLog(data.message, data.status === 'success' ? 'success' : 'info');
             }
@@ -107,22 +159,14 @@ eventSource.onmessage = function(event) {
             document.getElementById('tests-failed').textContent = data.failed || 0;
             document.getElementById('tests-total').textContent = data.total || 0;
             
-            const statusText = data.status === 'running' ? 'Running...' : 
-                             `${data.passed || 0}/${data.total || 0} passed`;
-            addLog(`Tests: ${statusText}`, 
-                   data.failed === 0 && data.status === 'completed' ? 'success' : 
-                   data.status === 'running' ? 'info' : 'error');
+            const statusText = `Tests: ${data.passed || 0}/${data.total || 0} passed`;
+            addLog(statusText, data.failed === 0 ? 'success' : 'error');
             break;
             
         case 'coverage':
             const percentage = data.percentage || 0;
             updateCoverage(percentage);
-            
-            if (data.status === 'running') {
-                addLog('Calculating coverage...', 'info');
-            } else if (data.status === 'completed') {
-                addLog(`Coverage: ${percentage}%`, percentage >= 85 ? 'success' : 'info');
-            }
+            addLog(`Coverage: ${percentage}%`, percentage >= 85 ? 'success' : 'info');
             break;
             
         case 'contract':
@@ -130,34 +174,14 @@ eventSource.onmessage = function(event) {
             document.getElementById('contracts-passed').textContent = data.passed || 0;
             document.getElementById('contracts-failed').textContent = data.failed || 0;
             
-            if (data.status === 'running') {
-                addLog(`Running contract tests for ${data.total || 0} endpoints...`, 'info');
-            } else if (data.status === 'completed') {
-                addLog(`Contract tests: ${data.passed || 0}/${data.total || 0} passed`, 
-                       data.failed === 0 ? 'success' : 'error');
-            }
+            addLog(`Contract tests: ${data.passed || 0}/${data.total || 0} passed`, 
+                   data.failed === 0 ? 'success' : 'error');
             break;
-
-            case 'comparison':
-    // Show comparison section
-    document.getElementById('comparison-section').style.display = 'block';
-    
-    // Before AI
-    document.getElementById('before-effort').textContent = data.before.manual_effort;
-    document.getElementById('before-tests').textContent = data.before.test_cases;
-    document.getElementById('before-coverage').textContent = data.before.coverage;
-    
-    // After AI
-    document.getElementById('after-time').textContent = data.after.ai_time;
-    document.getElementById('after-tests').textContent = data.after.test_cases;
-    document.getElementById('after-lines').textContent = data.after.lines_of_code;
-    
-    addLog('Comparison: Manual effort vs AI automation', 'success');
-    break;
             
         case 'git':
             document.getElementById('git-repo').textContent = 'Initialized';
             updateBadge('git-commit', data.committed ? 'success' : 'pending');
+            updateBadge('git-push', data.pushed ? 'success' : 'pending');
             addLog(data.message, data.committed ? 'success' : 'info');
             break;
             
@@ -167,6 +191,31 @@ eventSource.onmessage = function(event) {
             addLog(data.message, data.status === 'success' ? 'success' : 'info');
             break;
             
+        case 'comparison':
+            document.getElementById('comparison-section').style.display = 'block';
+            
+            document.getElementById('before-effort').textContent = data.before.manual_effort;
+            document.getElementById('before-tests').textContent = data.before.test_cases;
+            document.getElementById('before-coverage').textContent = data.before.coverage;
+            
+            document.getElementById('after-time').textContent = data.after.ai_time;
+            document.getElementById('after-tests').textContent = data.after.test_cases;
+            document.getElementById('after-lines').textContent = data.after.lines_of_code;
+            
+            addLog('Comparison: Manual vs AI automation', 'success');
+            break;
+            
+            case 'clear':
+    // Clear dashboard for new run
+    resetDashboard();
+    addLog('Dashboard cleared for new POC run', 'info');
+    break;
+
+case 'completion':
+    // POC completed - show final message
+    addLog(`✅ POC completed - ${data.test_file} generated`, 'success');
+    addLog(`Duration: ${data.duration}s, Coverage: ${data.coverage}%`, 'success');
+    break;
         case 'error':
             addLog(`Error: ${data.message}`, 'error');
             break;

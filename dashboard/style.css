@@ -282,3 +282,76 @@ header p {
     font-weight: 700;
     color: #667eea;
 }
+
+.reset-button {
+    padding: 8px 16px;
+    background: linear-gradient(135deg, #f44336 0%, #e91e63 100%);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.reset-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(244, 67, 54, 0.4);
+}
+
+.comparison-section {
+    background: white;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.comparison-section h2 {
+    color: #333;
+    margin-bottom: 20px;
+}
+
+.comparison-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.comparison-card {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+    border: 2px solid #e0e0e0;
+}
+
+.comparison-card.highlight {
+    background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+    border: 2px solid #667eea;
+}
+
+.comparison-card h3 {
+    margin-bottom: 15px;
+    color: #333;
+}
+
+.metric {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.metric:last-child {
+    border-bottom: none;
+}
+
+.metric-label {
+    font-weight: 500;
+    color: #666;
+}
+
+.metric-value {
+    font-weight: 700;
+    color: #667eea;
+}
