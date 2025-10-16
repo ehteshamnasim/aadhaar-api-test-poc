@@ -7,95 +7,91 @@ BASE_URL = "http://localhost:5000/api/v1"
 def headers():
     return {"Content-Type": "application/json"}
 
+# Tests for /aadhaar/verify endpoint
+
 def test_verify_aadhaar_success(headers):
     """
-    Test the /aadhaar/verify endpoint with a valid payload.
+    Test successful verification of Aadhaar number.
     """
-    response = requests.post(
-        f"{BASE_URL}/aadhaar/verify",
-        json={"aadhaar_number": "123456789012"},
-        headers=headers
-    )
+    payload = {"aadhaar_number": "123456789012"}
+    response = requests.post(f"{BASE_URL}/aadhaar/verify", json=payload, headers=headers)
     assert response.status_code == 200
     assert isinstance(response.json(), dict)
 
-def test_verify_aadhaar_missing_field(headers):
+def test_verify_aadhaar_invalid_payload(headers):
     """
-    Test the /aadhaar/verify endpoint with a missing field.
+    Test verification of Aadhaar number with invalid payload.
     """
-    response = requests.post(
-        f"{BASE_URL}/aadhaar/verify",
-        json={},
-        headers=headers
-    )
+    payload = {"aadhaar_number": "invalid"}
+    response = requests.post(f"{BASE_URL}/aadhaar/verify", json=payload, headers=headers)
     assert response.status_code == 400
+    assert isinstance(response.json(), dict)
+
+# Tests for /aadhaar/demographics endpoint
 
 def test_demographics_success(headers):
     """
-    Test the /aadhaar/demographics endpoint with a valid payload.
+    Test successful retrieval of demographic details.
     """
-    response = requests.post(
-        f"{BASE_URL}/aadhaar/demographics",
-        json={"aadhaar_number": "123456789012", "consent": True},
-        headers=headers
-    )
+    payload = {"aadhaar_number": "123456789012", "consent": True}
+    response = requests.post(f"{BASE_URL}/aadhaar/demographics", json=payload, headers=headers)
     assert response.status_code == 200
     assert isinstance(response.json(), dict)
 
-def test_demographics_missing_field(headers):
+def test_demographics_missing_consent(headers):
     """
-    Test the /aadhaar/demographics endpoint with a missing field.
+    Test retrieval of demographic details with missing consent.
     """
-    response = requests.post(
-        f"{BASE_URL}/aadhaar/demographics",
-        json={"aadhaar_number": "123456789012"},
-        headers=headers
-    )
+    payload = {"aadhaar_number": "123456789012"}
+    response = requests.post(f"{BASE_URL}/aadhaar/demographics", json=payload, headers=headers)
     assert response.status_code == 400
+    assert isinstance(response.json(), dict)
 
-def test_demographics_unauthorized(headers):
+def test_demographics_invalid_consent(headers):
     """
-    Test the /aadhaar/demographics endpoint with unauthorized access.
+    Test retrieval of demographic details with invalid consent.
     """
-    response = requests.post(
-        f"{BASE_URL}/aadhaar/demographics",
-        json={"aadhaar_number": "123456789012", "consent": False},
-        headers=headers
-    )
+    payload = {"aadhaar_number": "123456789012", "consent": "invalid"}
+    response = requests.post(f"{BASE_URL}/aadhaar/demographics", json=payload, headers=headers)
+    assert response.status_code == 400
+    assert isinstance(response.json(), dict)
+
+def test_demographics_forbidden(headers):
+    """
+    Test retrieval of demographic details with forbidden access.
+    """
+    payload = {"aadhaar_number": "123456789012", "consent": False}
+    response = requests.post(f"{BASE_URL}/aadhaar/demographics", json=payload, headers=headers)
     assert response.status_code == 403
+    assert isinstance(response.json(), dict)
+
+# Tests for /aadhaar/otp/generate endpoint
 
 def test_generate_otp_success(headers):
     """
-    Test the /aadhaar/otp/generate endpoint with a valid payload.
+    Test successful generation of OTP.
     """
-    response = requests.post(
-        f"{BASE_URL}/aadhaar/otp/generate",
-        json={"aadhaar_number": "123456789012"},
-        headers=headers
-    )
+    payload = {"aadhaar_number": "123456789012"}
+    response = requests.post(f"{BASE_URL}/aadhaar/otp/generate", json=payload, headers=headers)
     assert response.status_code == 200
     assert isinstance(response.json(), dict)
 
-def test_generate_otp_missing_field(headers):
+def test_generate_otp_invalid_payload(headers):
     """
-    Test the /aadhaar/otp/generate endpoint with a missing field.
+    Test generation of OTP with invalid payload.
     """
-    response = requests.post(
-        f"{BASE_URL}/aadhaar/otp/generate",
-        json={},
-        headers=headers
-    )
+    payload = {"aadhaar_number": "invalid"}
+    response = requests.post(f"{BASE_URL}/aadhaar/otp/generate", json=payload, headers=headers)
     assert response.status_code == 400
+    assert isinstance(response.json(), dict)
 
 def test_generate_otp_rate_limited(headers):
     """
-    Test the /aadhaar/otp/generate endpoint with rate limiting.
+    Test generation of OTP with rate limiting.
     """
-    # This test assumes that rate limiting is triggered after multiple requests
+    payload = {"aadhaar_number": "123456789012"}
+    # Simulate multiple requests to trigger rate limit
     for _ in range(10):  # Assuming rate limit is 1 request per second
-        response = requests.post(
-            f"{BASE_URL}/aadhaar/otp/generate",
-            json={"aadhaar_number": "123456789012"},
-            headers=headers
-        )
+        response = requests.post(f"{BASE_URL}/aadhaar/otp/generate", json=payload, headers=headers)
     assert response.status_code == 429
+    assert isinstance(response.json(), dict)
