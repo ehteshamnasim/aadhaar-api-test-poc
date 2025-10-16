@@ -6,6 +6,7 @@ import queue
 import threading
 import os
 from datetime import datetime
+import re
 
 
 app = Flask(__name__, static_folder='.')
@@ -208,29 +209,73 @@ def coverage_files(filename):
 
 @app.route('/generated-tests')
 def generated_tests():
-    """Show generated tests - NO CACHE"""
+    """Show latest generated test file"""
     try:
-        test_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'tests', 'test_aadhaar_api.py')
+        tests_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'tests')
         
-        if os.path.exists(test_file):
-            # Read fresh content
-            with open(test_file, 'r') as f:
-                content = f.read()
-            
-            # Get file stats
-            stats = os.stat(test_file)
-            modified_time = datetime.fromtimestamp(stats.st_mtime).strftime('%Y-%m-%d %H:%M:%S')
-            test_count = content.count('def test_')
-            line_count = len(content.split('\n'))
-            
-            import html as html_module
-            content_escaped = html_module.escape(content)
-            
-            html = f"""
+        # Find all test files
+        test_files = []
+        for file in os.listdir(tests_dir):
+            if file.startswith('test_aadhaar_api') and file.endswith('.py'):
+                full_path = os.path.join(tests_dir, file)
+                stats = os.stat(full_path)
+                test_files.append({
+                    'name': file,
+                    'path': full_path,
+                    'modified': stats.st_mtime
+                })
+        
+        if not test_files:
+            return """
+                <html>
+                <head>
+                    <meta http-equiv="refresh" content="5">
+                    <style>
+                        body { font-family: Arial; padding: 40px; text-align: center; background: #f5f5f5; }
+                        .container { background: white; padding: 40px; border-radius: 10px; max-width: 600px; margin: 0 auto; }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <h1>⏳ Generating Tests...</h1>
+                        <p>Page will auto-refresh when tests are ready</p>
+                        <a href="/">← Back to Dashboard</a>
+                    </div>
+                </body>
+                </html>
+            """, 404
+        
+        # Sort by modification time (latest first)
+        test_files.sort(key=lambda x: x['modified'], reverse=True)
+        latest_file = test_files[0]
+        
+        # Read content
+        with open(latest_file['path'], 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        # Get stats
+        modified_time = datetime.fromtimestamp(latest_file['modified']).strftime('%Y-%m-%d %H:%M:%S')
+        test_count = content.count('def test_')
+        line_count = len(content.split('\n'))
+        
+        # Extract version from filename
+        version_match = re.search(r'_v(\d+)\.py$', latest_file['name'])
+        version = f"v{version_match.group(1)}" if version_match else "v1"
+        
+        import html as html_module
+        content_escaped = html_module.escape(content)
+        
+        # Create file list dropdown
+        file_options = ''
+        for file in test_files:
+            selected = 'selected' if file['name'] == latest_file['name'] else ''
+            file_options += f'<option value="{file["name"]}" {selected}>{file["name"]}</option>'
+        
+        html_content = f"""
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Generated Tests</title>
+    <title>Generated Tests - {latest_file['name']}</title>
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
@@ -245,7 +290,7 @@ def generated_tests():
             font-family: 'Courier New', monospace;
         }}
         .container {{
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
             background: #2d2d2d;
             padding: 20px;
@@ -256,102 +301,158 @@ def generated_tests():
             justify-content: space-between;
             align-items: center;
             margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }}
+        .header-left {{
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }}
+        .header-right {{
+            display: flex;
+            gap: 15px;
+            align-items: center;
         }}
         h1 {{
             color: #fff;
             margin: 0;
+            font-size: 24px;
+        }}
+        .version-badge {{
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
         }}
         .stats {{
+            background: #1e1e1e;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+        }}
+        .stat-item {{
             color: #888;
             font-size: 14px;
         }}
-        .stats span {{
-            display: inline-block;
-            margin-left: 20px;
+        .stat-item span {{
             color: #4caf50;
+            font-weight: bold;
+            margin-left: 8px;
+        }}
+        .file-selector {{
+            background: #1e1e1e;
+            color: white;
+            border: 1px solid #667eea;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            cursor: pointer;
+        }}
+        .file-selector:hover {{
+            background: #2d2d2d;
         }}
         pre {{
             margin: 0;
             border-radius: 4px;
-            max-height: 80vh;
+            max-height: 75vh;
             overflow: auto;
         }}
-        .back-btn {{
+        .back-btn, .refresh-btn, .download-btn {{
             display: inline-block;
             padding: 10px 20px;
-            background: #667eea;
             color: white;
             text-decoration: none;
-            border-radius: 4px;
-            margin-bottom: 20px;
+            border-radius: 6px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }}
+        .back-btn {{
+            background: #667eea;
         }}
         .back-btn:hover {{
             background: #764ba2;
         }}
         .refresh-btn {{
-            display: inline-block;
-            padding: 10px 20px;
             background: #4caf50;
-            color: white;
-            text-decoration: none;
-            border-radius: 4px;
-            margin-left: 10px;
             cursor: pointer;
         }}
         .refresh-btn:hover {{
             background: #45a049;
+        }}
+        .download-btn {{
+            background: #ff9800;
+        }}
+        .download-btn:hover {{
+            background: #f57c00;
         }}
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <div>
-                <a href="/" class="back-btn">← Back to Dashboard</a>
-                <a href="/generated-tests" class="refresh-btn" onclick="location.reload()">🔄 Refresh</a>
+            <div class="header-left">
+                <h1>Generated Test File</h1>
+                <span class="version-badge">{version}</span>
             </div>
-            <div class="stats">
-                Last modified: <span>{modified_time}</span> |
-                Test cases: <span>{test_count}</span> |
-                Lines: <span>{line_count}</span>
+            <div class="header-right">
+                <select class="file-selector" onchange="window.location.href='/generated-tests?file=' + this.value">
+                    {file_options}
+                </select>
+                <a href="/" class="back-btn">← Dashboard</a>
+                <a href="/generated-tests" class="refresh-btn" onclick="location.reload(); return false;">🔄 Refresh</a>
+                <a href="/download-test/{latest_file['name']}" class="download-btn">⬇ Download</a>
             </div>
         </div>
-        <h1>Generated Test File: test_aadhaar_api.py</h1>
+        
+        <div class="stats">
+            <div class="stat-item">
+                📄 File: <span>{latest_file['name']}</span>
+            </div>
+            <div class="stat-item">
+                📅 Modified: <span>{modified_time}</span>
+            </div>
+            <div class="stat-item">
+                🧪 Test Cases: <span>{test_count}</span>
+            </div>
+            <div class="stat-item">
+                📏 Lines: <span>{line_count}</span>
+            </div>
+        </div>
+        
         <pre><code class="language-python">{content_escaped}</code></pre>
     </div>
     <script>
         hljs.highlightAll();
-        // Auto-refresh every 10 seconds when file changes
-        setTimeout(function(){{
-            fetch('/api/test-file-changed')
-                .then(r => r.json())
-                .then(data => {{
-                    if (data.changed) {{
-                        console.log('File changed, reloading...');
-                        location.reload();
-                    }}
-                }});
-        }}, 10000);
     </script>
 </body>
 </html>
 """
-            return html, 200, {'Cache-Control': 'no-cache, no-store, must-revalidate'}
-        else:
-            return """
-                <html>
-                <head>
-                    <meta http-equiv="refresh" content="5">
-                </head>
-                <body style="font-family: Arial; padding: 40px; text-align: center;">
-                    <h1>⏳ Generating Tests...</h1>
-                    <p>Page will auto-refresh when tests are ready</p>
-                    <a href="/" style="color: #667eea; text-decoration: none;">← Back to Dashboard</a>
-                </body>
-                </html>
-            """, 404
+        return html_content, 200, {'Cache-Control': 'no-cache, no-store, must-revalidate'}
     except Exception as e:
-        return f"<h1>Error: {e}</h1><a href='/'>Back</a>", 500
+        return f"""
+            <html>
+            <body style="font-family: Arial; padding: 40px; text-align: center;">
+                <h1>Error Loading Tests</h1>
+                <p>{str(e)}</p>
+                <a href="/">← Back to Dashboard</a>
+            </body>
+            </html>
+        """, 500
+
+@app.route('/download-test/<filename>')
+def download_test(filename):
+    """Download test file"""
+    try:
+        tests_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'tests')
+        return send_from_directory(tests_dir, filename, as_attachment=True)
+    except Exception as e:
+        return f"Error: {e}", 404
 
 @app.route('/api/test-file-changed')
 def test_file_changed():
