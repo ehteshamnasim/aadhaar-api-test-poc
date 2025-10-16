@@ -61,3 +61,42 @@ def test_demographics_forbidden(session):
     response = session.post(f"{BASE_URL}/aadhaar/demographics", json=payload)
     assert response.status_code == 403
     assert isinstance(response.json(), dict)
+
+# --- New tests from spec change (2025-10-16 15:55:39) ---
+
+def test_verify_aadhaar_invalid_payload(invalid_verify_aadhaar_payload):
+    """
+    Test verification of Aadhaar number with invalid payload.
+    """
+    response = requests.post(f"{BASE_URL}/aadhaar/verify", json=invalid_verify_aadhaar_payload)
+    assert response.status_code == 400
+    assert isinstance(response.json(), dict)
+
+
+def test_demographics_invalid_payload(invalid_demographics_payload):
+    """
+    Test retrieval of demographic details with invalid payload.
+    """
+    response = requests.post(f"{BASE_URL}/aadhaar/demographics", json=invalid_demographics_payload)
+    assert response.status_code == 400
+    assert isinstance(response.json(), dict)
+
+
+def test_demographics_missing_consent():
+    """
+    Test retrieval of demographic details without consent field.
+    """
+    payload = {"aadhaar_number": "123456789012"}
+    response = requests.post(f"{BASE_URL}/aadhaar/demographics", json=payload)
+    assert response.status_code == 400
+    assert isinstance(response.json(), dict)
+
+
+def test_demographics_forbidden_access():
+    """
+    Test retrieval of demographic details with forbidden access.
+    """
+    payload = {"aadhaar_number": "123456789012", "consent": False}
+    response = requests.post(f"{BASE_URL}/aadhaar/demographics", json=payload)
+    assert response.status_code == 403
+    assert isinstance(response.json(), dict)
