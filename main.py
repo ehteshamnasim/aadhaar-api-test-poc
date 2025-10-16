@@ -391,37 +391,55 @@ class POCOrchestrator:
             raise Exception("Code validation failed")
     
     def save_test_file_with_header(self, test_code: str, parsed_spec: dict):
-        """Save test file with metadata header and deduplication"""
+        """Save test file with header and required fixtures"""
         filename = self._get_test_filename()
         self.test_file_path = os.path.join(self.output_dir, filename)
         
         print(f"   💾 Saving to: {filename}")
         
-        # Deduplicate test functions
+        # Deduplicate
         unique_tests = self._deduplicate_tests(test_code)
         self.unique_test_count = len(unique_tests)
-        
-        print(f"   ✅ Deduplicated: {len(self._extract_test_names(test_code))} → {self.unique_test_count} unique")
         
         # Create header
         header = self._create_file_header(parsed_spec)
         
-        # Extract imports
-        imports = self._extract_imports(test_code)
+        # FORCED TEMPLATE - Always include these
+        required_code = f'''
+    import pytest
+    import requests
+
+
+    # ==================== CONFIGURATION ====================
+
+    BASE_URL = "{parsed_spec['base_url']}"
+
+
+    # ==================== FIXTURES ====================
+
+    @pytest.fixture(scope="session")
+    def session():
+        """Provides a requests Session for all tests"""
+        with requests.Session() as s:
+            s.headers.update({{'Content-Type': 'application/json'}})
+            yield s
+
+
+    # ==================== TEST CASES ====================
+
+    '''
         
         # Construct final file
-        final_code = header + '\n\n'
-        final_code += '\n'.join(imports) + '\n\n'
+        final_code = header + required_code
         
         for test_name in sorted(unique_tests.keys()):
             final_code += unique_tests[test_name] + '\n\n'
         
-        # Save file
+        # Save
         with open(self.test_file_path, 'w', encoding='utf-8') as f:
             f.write(final_code)
         
-        print(f"   ✅ Saved {self.unique_test_count} tests ({len(final_code.split(chr(10)))} lines)")
-    
+        print(f"   ✅ Saved {self.unique_test_count} tests with fixtures")
     def _deduplicate_tests(self, test_code: str) -> Dict[str, str]:
         """Remove duplicate test functions, keeping first occurrence"""
         test_functions = {}
