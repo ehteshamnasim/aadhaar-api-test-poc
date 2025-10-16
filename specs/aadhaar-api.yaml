@@ -86,7 +86,7 @@ paths:
                   gender:
                     type: object
                   address:
-                    type: string
+                    type: object
         '400':
           description: Invalid request
         '403':

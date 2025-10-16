@@ -425,3 +425,95 @@ header p {
     color: #333;
     word-wrap: break-word;
 }
+
+.test-details-card {
+    grid-column: 1 / -1;
+    background: white;
+}
+
+#test-details-list {
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.test-detail-item {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-left: 4px solid;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 12px;
+    transition: all 0.3s;
+}
+
+.test-detail-item.passed {
+    border-left-color: #4caf50;
+    background: #f1f8f4;
+}
+
+.test-detail-item.failed {
+    border-left-color: #f44336;
+    background: #fff5f5;
+}
+
+.test-detail-item:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+}
+
+.test-detail-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.test-icon {
+    font-size: 20px;
+}
+
+.test-name {
+    flex: 1;
+    font-family: 'Courier New', monospace;
+    font-weight: 600;
+    color: #333;
+    font-size: 14px;
+}
+
+.test-status {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.status-passed {
+    background: #4caf50;
+    color: white;
+}
+
+.status-failed {
+    background: #f44336;
+    color: white;
+}
+
+.test-reason {
+    background: #f5f5f5;
+    padding: 10px;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    color: #555;
+    line-height: 1.6;
+    word-wrap: break-word;
+}
+
+.test-detail-item.passed .test-reason {
+    background: #e8f5e9;
+    color: #2e7d32;
+}
+
+.test-detail-item.failed .test-reason {
+    background: #ffebee;
+    color: #c62828;
+}

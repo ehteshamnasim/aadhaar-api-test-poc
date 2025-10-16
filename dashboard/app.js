@@ -155,44 +155,50 @@ eventSource.onmessage = function (event) {
       break;
 
     case 'execute':
-      document.getElementById('tests-passed').textContent = data.passed || 0;
-      document.getElementById('tests-failed').textContent = data.failed || 0;
-      document.getElementById('tests-total').textContent = data.total || 0;
-
-      // Show failures if any
-      if (data.failures && data.failures.length > 0) {
-        document.getElementById('failures-card').style.display = 'block';
-
-        const failuresList = document.getElementById('failures-list');
-        failuresList.innerHTML = '';
-
-        data.failures.forEach((failure, index) => {
-          const failureDiv = document.createElement('div');
-          failureDiv.className = 'failure-item';
-          failureDiv.innerHTML = `
-                <div class="failure-header">
-                    <strong>${index + 1}. ${failure.test_name}</strong>
+    document.getElementById('tests-passed').textContent = data.passed || 0;
+    document.getElementById('tests-failed').textContent = data.failed || 0;
+    document.getElementById('tests-total').textContent = data.total || 0;
+    
+    // Show test details if available
+    if (data.details && data.details.length > 0) {
+        document.getElementById('test-details-card').style.display = 'block';
+        
+        const detailsList = document.getElementById('test-details-list');
+        detailsList.innerHTML = '';
+        
+        data.details.forEach((detail, index) => {
+            const detailDiv = document.createElement('div');
+            detailDiv.className = detail.passed ? 'test-detail-item passed' : 'test-detail-item failed';
+            
+            const icon = detail.passed ? '✅' : '❌';
+            const statusClass = detail.passed ? 'status-passed' : 'status-failed';
+            
+            detailDiv.innerHTML = `
+                <div class="test-detail-header">
+                    <span class="test-icon">${icon}</span>
+                    <span class="test-name">${detail.name}</span>
+                    <span class="test-status ${statusClass}">${detail.passed ? 'PASSED' : 'FAILED'}</span>
                 </div>
-                <div class="failure-details">
-                    <span class="failure-type">${failure.error_type}</span>
-                    ${failure.line_number ? `<span class="failure-line">Line ${failure.line_number}</span>` : ''}
-                </div>
-                <div class="failure-message">${failure.error_message}</div>
+                <div class="test-reason">${detail.reason}</div>
             `;
-          failuresList.appendChild(failureDiv);
+            detailsList.appendChild(detailDiv);
         });
+        
+        addLog(`Test details: ${data.passed} passed, ${data.failed} failed`, data.failed === 0 ? 'success' : 'error');
+    } else {
+        document.getElementById('test-details-card').style.display = 'none';
+    }
+    
+    const statusText = `Tests: ${data.passed || 0}/${data.total || 0} passed`;
+    addLog(statusText, data.failed === 0 ? 'success' : 'error');
+    break;
 
-        addLog(`${data.failed} test(s) failed - see failure details`, 'error');
-      } else {
-        document.getElementById('failures-card').style.display = 'none';
-        if (data.total > 0) {
-          addLog(`All ${data.passed} tests passed!`, 'success');
-        }
-      }
-
-      const statusText = `Tests: ${data.passed || 0}/${data.total || 0} passed`;
-      addLog(statusText, data.failed === 0 ? 'success' : 'error');
-      break;
+case 'clear':
+    // Clear test details when resetting
+    document.getElementById('test-details-card').style.display = 'none';
+    resetDashboard();
+    addLog('Dashboard cleared for new POC run', 'info');
+    break;
 
     case 'clear':
       // Clear failures when resetting
