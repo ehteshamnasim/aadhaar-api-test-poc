@@ -84,7 +84,7 @@ paths:
                   dob:
                     type: object
                   gender:
-                    type: object
+                    type: string
                   address:
                     type: string
         '400':
