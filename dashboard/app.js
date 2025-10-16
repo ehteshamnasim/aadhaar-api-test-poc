@@ -136,16 +136,20 @@ eventSource.onmessage = function (event) {
       addLog(`Parsed ${data.endpoints || 0} endpoints`, 'success');
       break;
 
-    case 'generate':
-      const progress = data.progress || 0;
-      document.getElementById('gen-progress').style.width = progress + '%';
-      document.getElementById('tests-generated').textContent = data.count || 0;
-      updateBadge('gen-status', data.status || 'running');
-
-      if (data.message) {
+  case 'generate':
+    document.getElementById('gen-progress').style.width = (data.progress || 0) + '%';
+    document.getElementById('tests-generated').textContent = data.count || 0;
+    updateBadge('gen-status', data.status || 'running');
+    
+    if (data.message) {
         addLog(data.message, data.status === 'success' ? 'success' : 'info');
-      }
-      break;
+    }
+    
+    // SHOW "View Generated Tests" button when generation complete
+    if (data.status === 'success' && data.count > 0) {
+        document.getElementById('tests-btn').style.display = 'inline-block';
+    }
+    break;
 
     case 'validate':
       updateBadge('syntax-check', data.syntax ? 'success' : 'failed');
@@ -226,11 +230,17 @@ case 'clear':
     break;
 
 
-    case 'coverage':
-      const percentage = data.percentage || 0;
-      updateCoverage(percentage);
-      addLog(`Coverage: ${percentage}%`, percentage >= 85 ? 'success' : 'info');
-      break;
+ case 'coverage':
+    const percentage = data.percentage || 0;
+    updateCoverage(percentage);
+    addLog(`Coverage: ${percentage}%`, percentage >= 85 ? 'success' : 'info');
+    
+    // SHOW "View Coverage Report" button when coverage complete
+    if (percentage > 0) {
+        document.getElementById('coverage-btn').style.display = 'inline-block';
+    }
+    break;
+
 
     case 'contract':
       document.getElementById('contracts-tested').textContent = data.total || 0;
@@ -272,11 +282,13 @@ case 'clear':
       addLog('Comparison: Manual vs AI automation', 'success');
       break;
 
-    case 'clear':
-      // Clear dashboard for new run
-      resetDashboard();
-      addLog('Dashboard cleared for new POC run', 'info');
-      break;
+case 'clear':
+    // HIDE buttons on reset
+    document.getElementById('coverage-btn').style.display = 'none';
+    document.getElementById('tests-btn').style.display = 'none';
+    resetDashboard();
+    addLog('Dashboard cleared for new POC run', 'info');
+    break;
 
     case 'completion':
       // POC completed - show final message
@@ -286,32 +298,7 @@ case 'clear':
     case 'error':
       addLog(`Error: ${data.message}`, 'error');
       break;
-      // AUTO-REFRESH ON COMPLETION
-case 'poc_complete':
-    addLog(`✅ POC completed in ${data.duration}s`, 'success');
-    
-    // Show hidden sections
-    document.querySelectorAll('.hidden-until-complete').forEach(el => {
-        el.style.display = 'block';
-    });
-    
-    // Auto-reload after 2 seconds to show final state
-    setTimeout(() => {
-        addLog('Refreshing dashboard...', 'info');
-        location.reload();
-    }, 2000);
-    break;
-
-case 'tests_started':
-    // Hide coverage and test viewer until complete
-    const coverageCard = document.querySelector('.coverage-card');
-    const testViewerButtons = document.querySelector('.actions');
-    
-    if (coverageCard) coverageCard.classList.add('hidden-until-complete');
-    if (testViewerButtons) testViewerButtons.classList.add('hidden-until-complete');
-    
-    addLog('Tests executing - coverage will be calculated after...', 'info');
-    break;
+      
   }
 };
 

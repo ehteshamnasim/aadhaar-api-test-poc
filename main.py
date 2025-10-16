@@ -397,51 +397,125 @@ def check_api():
             print(f"   Error: {e}")
     
     def calculate_coverage(self):
-        """Calculate coverage with detailed analysis"""
+        """Calculate coverage - FIXED VERSION"""
+        print("   Running coverage analysis...")
+        
         try:
-            # Run coverage
-            subprocess.run(
-                ['coverage', 'run', '--source=api', '-m', 'pytest', self.test_file_path], 
+            # Step 1: Run tests with coverage
+            print("      Running tests with coverage...")
+            result = subprocess.run(
+                ['coverage', 'run', '--source=api', '-m', 'pytest', self.test_file_path],
                 capture_output=True,
-                timeout=60
+                text=True,
+                timeout=60,
+                cwd=os.path.dirname(os.path.abspath(__file__))
             )
             
-            # Get report
-            result = subprocess.run(['coverage', 'report'], capture_output=True, text=True)
+            if result.returncode != 0:
+                print(f"      ⚠️ Coverage run had errors: {result.stderr[:100]}")
             
+            # Step 2: Generate text report
+            print("      Generating coverage report...")
+            result = subprocess.run(
+                ['coverage', 'report'],
+                capture_output=True,
+                text=True,
+                cwd=os.path.dirname(os.path.abspath(__file__))
+            )
+            
+            print("      Coverage output:")
+            print(result.stdout)
+            
+            # Step 3: Parse coverage percentage
             coverage = 0
             for line in result.stdout.split('\n'):
                 if 'TOTAL' in line:
+                    parts = line.split()
                     try:
-                        coverage = int(line.split()[-1].rstrip('%'))
-                    except:
-                        pass
+                        # Coverage format: "TOTAL    123    45    63%"
+                        coverage_str = parts[-1].rstrip('%')
+                        coverage = int(float(coverage_str))
+                        print(f"      Parsed coverage: {coverage}%")
+                    except Exception as e:
+                        print(f"      Parse error: {e}")
+                    break
             
-            # Generate detailed report
-            subprocess.run(['coverage', 'html', '-d', 'htmlcov'], capture_output=True)
-            
-            # Get missed lines info
-            result_detailed = subprocess.run(
-                ['coverage', 'report', '--show-missing'],
+            # Step 4: Generate HTML report
+            print("      Generating HTML report...")
+            html_result = subprocess.run(
+                ['coverage', 'html', '-d', 'htmlcov'],
                 capture_output=True,
-                text=True
+                text=True,
+                cwd=os.path.dirname(os.path.abspath(__file__))
             )
+            
+            if html_result.returncode == 0:
+                print("      ✅ HTML report generated: htmlcov/index.html")
+            else:
+                print(f"      ⚠️ HTML generation failed: {html_result.stderr}")
+            
+            # Step 5: Verify HTML file exists
+            htmlcov_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'htmlcov', 'index.html')
+            if os.path.exists(htmlcov_path):
+                print(f"      ✅ Coverage report exists: {htmlcov_path}")
+            else:
+                print(f"      ⚠️ Coverage report not found at: {htmlcov_path}")
             
             self.actual_coverage = coverage
             print(f"   Coverage: {coverage}%")
             
-            # Store detailed info for analysis
-            self.coverage_details = result_detailed.stdout
+            # Send to dashboard
+            send_event('coverage', {'percentage': coverage})
             
-            send_event('coverage', {
-                'percentage': coverage,
-                'details': result_detailed.stdout if coverage < 85 else None
-            })
+            # Analyze if low
+            if coverage > 0 and coverage < 85:
+                self.analyze_coverage_details(result.stdout)
             
-        except Exception as e:
-            print(f"   Error: {e}")
+        except subprocess.TimeoutExpired:
+            print("   ❌ Coverage calculation timeout")
             self.actual_coverage = 0
             send_event('coverage', {'percentage': 0})
+        
+        except FileNotFoundError as e:
+            print(f"   ❌ Coverage tool not found: {e}")
+            print("   💡 Install: pip install coverage")
+            self.actual_coverage = 0
+            send_event('coverage', {'percentage': 0})
+        
+        except Exception as e:
+            print(f"   ❌ Coverage error: {e}")
+            import traceback
+            traceback.print_exc()
+            self.actual_coverage = 0
+            send_event('coverage', {'percentage': 0})
+
+    def analyze_coverage_details(self, coverage_output):
+        """Analyze why coverage is low"""
+        print(f"\n   ⚠️  Coverage is {self.actual_coverage}% (target: ≥85%)")
+        print(f"   📋 Analysis:")
+        
+        lines = coverage_output.split('\n')
+        
+        for line in lines:
+            if '.py' in line and '%' in line:
+                parts = line.split()
+                if len(parts) >= 4:
+                    try:
+                        file = parts[0]
+                        statements = parts[1]
+                        missed = parts[2]
+                        coverage_pct = parts[3].rstrip('%')
+                        
+                        if 'api' in file:
+                            print(f"      • {file}: {coverage_pct}% ({missed} of {statements} lines missed)")
+                    except:
+                        pass
+        
+        print(f"\n   💡 To improve coverage:")
+        print(f"      1. Add tests for error responses (400, 403, 500)")
+        print(f"      2. Test edge cases (empty strings, null values)")
+        print(f"      3. Test all branches (if/else conditions)")
+        print(f"      4. Test error handlers and exceptions")
     
     def analyze_coverage(self):
         """Analyze why coverage might be low"""
