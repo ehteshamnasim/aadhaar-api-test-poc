@@ -18,11 +18,16 @@ class CodeValidator:
     @staticmethod
     def validate_imports(code: str) -> Tuple[bool, str]:
         """Check if required imports are present"""
-        required_imports = ['pytest', 'requests']
+        # Check for pytest (required)
+        if 'pytest' not in code:
+            return False, "Missing import: pytest"
         
-        for imp in required_imports:
-            if imp not in code:
-                return False, f"Missing import: {imp}"
+        # Check for either requests OR Flask app import
+        has_requests = 'requests' in code
+        has_flask_import = 'from api.dummy_aadhaar_api import app' in code or 'import app' in code
+        
+        if not (has_requests or has_flask_import):
+            return False, "Missing import: pytest test approach (requests or Flask app)"
         
         return True, "All required imports present"
     

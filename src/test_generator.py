@@ -47,21 +47,20 @@ class TestGenerator:
     
     def _build_prompt(self, parsed_spec: Dict) -> str:
         """Build prompt for LLM"""
-        base_url = parsed_spec['base_url']
         endpoints = parsed_spec['endpoints']
         
         prompt = f"""You are an expert Python test engineer. Generate pytest test code for the following REST API.
 
-Base URL: {base_url}
-
 Requirements:
 - Use pytest framework
-- Use requests library for API calls
+- Import Flask app directly: from api.dummy_aadhaar_api import app
+- Use Flask test client: client = app.test_client()
+- Make requests using: response = client.post('/api/v1/path', json={{...}})
 - Include tests for success cases (2xx responses)
 - Include tests for error cases (4xx responses)
 - Test with valid and invalid payloads
 - Add clear test names and docstrings
-- Use pytest fixtures where appropriate
+- Use pytest fixtures for test client
 - Follow PEP 8 style guide
 
 API Endpoints to test:
@@ -81,10 +80,24 @@ API Endpoints to test:
         
         prompt += """
 Generate ONLY the Python code for pytest tests. Include:
-1. Import statements (pytest, requests)
-2. Base URL configuration
-3. Test functions for each endpoint
+1. Import statements (pytest, from api.dummy_aadhaar_api import app)
+2. Pytest fixture for test client
+3. Test functions using client.post(), client.get(), etc.
 4. Assert statements for status codes and response structure
+
+Example structure:
+```python
+import pytest
+from api.dummy_aadhaar_api import app
+
+@pytest.fixture
+def client():
+    return app.test_client()
+
+def test_example(client):
+    response = client.post('/api/v1/path', json={{"field": "value"}})
+    assert response.status_code == 200
+```
 
 Do not include explanations, just the code. Start directly with imports.
 """

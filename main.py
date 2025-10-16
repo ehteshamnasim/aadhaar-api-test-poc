@@ -243,7 +243,7 @@ class POCOrchestrator:
         filename = 'test_aadhaar_api.py' if self.version == 1 else f'test_aadhaar_api_v{self.version}.py'
         self.test_file_path = os.path.join(self.output_dir, filename)
         
-        # Deduplicate
+        # Deduplicate and convert to Flask test client format
         test_functions = {}
         lines = test_code.split('\n')
         i = 0
@@ -256,32 +256,41 @@ class POCOrchestrator:
                     func.append(lines[i])
                     i += 1
                 if name not in test_functions:
-                    test_functions[name] = '\n'.join(func)
+                    # Convert requests calls to Flask test client calls
+                    func_code = '\n'.join(func)
+                    # Convert: session.post(BASE_URL + '/path' -> client.post('/api/v1/path'
+                    # Convert: requests.post(BASE_URL + '/path' -> client.post('/api/v1/path'
+                    func_code = func_code.replace("session.post(BASE_URL + '", "client.post('/api/v1")
+                    func_code = func_code.replace("session.get(BASE_URL + '", "client.get('/api/v1")
+                    func_code = func_code.replace("requests.post(BASE_URL + '", "client.post('/api/v1")
+                    func_code = func_code.replace("requests.get(BASE_URL + '", "client.get('/api/v1")
+                    func_code = func_code.replace('session.post(BASE_URL + "', 'client.post("/api/v1')
+                    func_code = func_code.replace('session.get(BASE_URL + "', 'client.get("/api/v1')
+                    func_code = func_code.replace('requests.post(BASE_URL + "', 'client.post("/api/v1')
+                    func_code = func_code.replace('requests.get(BASE_URL + "', 'client.get("/api/v1')
+                    # Fix paths that already have /api/v1 from LLM
+                    func_code = func_code.replace("client.post('/aadhaar", "client.post('/api/v1/aadhaar")
+                    func_code = func_code.replace("client.get('/aadhaar", "client.get('/api/v1/aadhaar")
+                    func_code = func_code.replace('client.post("/aadhaar', 'client.post("/api/v1/aadhaar')
+                    func_code = func_code.replace('client.get("/aadhaar', 'client.get("/api/v1/aadhaar')
+                    # Convert response.json() to response.get_json()
+                    func_code = func_code.replace('.json()', '.get_json()')
+                    func_code = func_code.replace('.json', '.get_json()')
+                    test_functions[name] = func_code
             else:
                 i += 1
         
         self.unique_test_count = len(test_functions)
         
-        # Create file
+        # Create file with Flask test client setup
         code = f'''"""AI-Generated Tests v{self.version} - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
 import pytest
-import requests
+from api.dummy_aadhaar_api import app
 
-BASE_URL = "{parsed_spec['base_url']}"
-
-@pytest.fixture(scope="session")
-def session():
-    with requests.Session() as s:
-        s.headers.update({{'Content-Type': 'application/json'}})
-        yield s
-
-@pytest.fixture(scope="session", autouse=True)
-def check_api():
-    try:
-        r = requests.get(BASE_URL.replace('/api/v1', '/health'), timeout=3)
-        assert r.status_code == 200
-    except:
-        pytest.fail("API unavailable")
+@pytest.fixture
+def client():
+    """Flask test client fixture"""
+    return app.test_client()
 
 '''
         for name in sorted(test_functions.keys()):
@@ -293,7 +302,7 @@ def check_api():
         print(f"   ✓ Test suite prepared: {filename}")
     
     def run_tests_fixed(self):
-        """Execute tests - COMPLETE FIX"""
+        """Execute tests - Using Flask test client (no API server needed)"""
         
         # Verify file
         if not os.path.exists(self.test_file_path):
@@ -301,18 +310,7 @@ def check_api():
             send_event('execute', {'passed': 0, 'failed': 0, 'total': self.unique_test_count, 'details': []})
             return
         
-        # Check API
-        try:
-            r = requests.get('http://localhost:5001/health', timeout=3)
-            if r.status_code != 200:
-                raise Exception("unhealthy")
-        except Exception as e:
-            print(f"   ✗ API unavailable: {e}")
-            details = [{'name': f'test_{i}', 'passed': False, 'reason': f'API unavailable: {e}'} for i in range(self.unique_test_count)]
-            send_event('execute', {'passed': 0, 'failed': self.unique_test_count, 'total': self.unique_test_count, 'details': details})
-            return
-        
-        print("   ✓ API verified")
+        print("   ✓ Tests will run using Flask test client")
         
         # Run pytest with explicit path
         try:
