@@ -19,6 +19,8 @@ from parser import OpenAPIParser
 from test_generator import TestGenerator
 from contract_tester import ContractTester
 from validator import CodeValidator
+from coverage_analyzer import CoverageAnalyzer
+from test_quality_validator import TestQualityValidator
 
 import requests
 
@@ -94,9 +96,18 @@ class POCOrchestrator:
             test_code = self.generate_tests(parsed_spec)
             time.sleep(1.5)
             
-            # Validate
+            # Validate syntax
             self._log("Validating generated test suite")
             self.validate_code(test_code)
+            time.sleep(1.5)
+            
+            # Validate quality
+            self._log("Analyzing test quality and coverage patterns")
+            quality_result = self.validate_test_quality(test_code, parsed_spec)
+            if not quality_result['passed']:
+                self._log(f"Test quality score: {quality_result['score']}/100 - regenerating with enhanced requirements")
+                test_code = self.regenerate_tests_with_feedback(parsed_spec, quality_result)
+                self.validate_code(test_code)  # Re-validate syntax
             time.sleep(1.5)
             
             # Save
@@ -118,6 +129,12 @@ class POCOrchestrator:
             self._log("Analyzing code coverage metrics")
             self.calculate_coverage_final_fix()
             time.sleep(1.5)
+            
+            # Refine tests if coverage < 95%
+            if self.actual_coverage < 95:
+                self._log("Refining test suite for improved coverage")
+                self.refine_tests_with_coverage(parsed_spec)
+                time.sleep(1.5)
             
             # Comparison
             self.show_comparison()
@@ -253,6 +270,68 @@ class POCOrchestrator:
             raise Exception("Code validation failed")
         
         print("   ✓ Code quality verified")
+    
+    def validate_test_quality(self, test_code, parsed_spec):
+        """
+        Validate test quality for comprehensive coverage
+        
+        Parameters:
+            test_code: Generated test code
+            parsed_spec: Parsed API specification
+        
+        Returns:
+            Quality validation result dictionary
+        """
+        validator = TestQualityValidator()
+        result = validator.validate_test_suite(test_code)
+        
+        print(f"   Test Quality Score: {result['score']}/100")
+        print(f"   - Test Count: {result['test_count']}")
+        print(f"   - Error Coverage: {result['error_coverage']:.0%}")
+        print(f"   - Assertion Quality: {result['assertion_quality']:.0%}")
+        
+        if not result['passed']:
+            print(f"   ⚠ Quality issues detected:")
+            for issue in result['issues'][:3]:
+                print(f"     • {issue}")
+        
+        return result
+    
+    def regenerate_tests_with_feedback(self, parsed_spec, quality_result):
+        """
+        Regenerate tests with quality feedback
+        
+        Parameters:
+            parsed_spec: Parsed API specification
+            quality_result: Quality validation result
+        
+        Returns:
+            Regenerated test code
+        """
+        generator = TestGenerator()
+        validator = TestQualityValidator()
+        
+        # Get original prompt
+        original_prompt = generator._build_prompt(parsed_spec)
+        
+        # Enhance prompt with quality feedback
+        improved_prompt = validator.generate_improvement_prompt(quality_result, original_prompt)
+        
+        print("   🔄 Regenerating with enhanced requirements...")
+        
+        send_event('generate', {
+            'progress': 50,
+            'count': 0,
+            'status': 'in_progress',
+            'message': 'Regenerating tests with quality improvements'
+        })
+        
+        # Regenerate
+        improved_code = generator._call_ollama(improved_prompt)
+        
+        print("   ✓ Regeneration complete")
+        
+        return improved_code
     
     def save_test_file(self, test_code, parsed_spec):
         """Save file"""
@@ -522,6 +601,92 @@ def client():
             print(f"   ✗ Coverage error: {e}")
             self.actual_coverage = 0
             send_event('coverage', {'percentage': 0})
+    
+    def refine_tests_with_coverage(self, parsed_spec):
+        """
+        Iteratively improve tests based on coverage analysis
+        Generates additional tests to cover missing lines
+        """
+        if self.actual_coverage >= 95:
+            print(f"   ✓ Coverage target achieved: {self.actual_coverage}%")
+            return
+        
+        self._log(f"Coverage at {self.actual_coverage}% - generating targeted tests for missing paths")
+        
+        try:
+            # Analyze coverage gaps
+            analyzer = CoverageAnalyzer()
+            coverage_pct, missing_lines = analyzer.run_coverage_analysis(self.test_file_path)
+            
+            if not missing_lines:
+                print("   ✓ No missing lines detected")
+                return
+            
+            print(f"   Found {len(missing_lines)} uncovered lines")
+            
+            # Identify error paths
+            error_paths = analyzer.identify_error_paths()
+            
+            if not error_paths:
+                print("   ⚠ Could not categorize missing lines")
+                return
+            
+            # Read existing tests
+            with open(self.test_file_path, 'r') as f:
+                existing_tests = f.read()
+            
+            # Generate targeted prompt
+            generator = TestGenerator()
+            targeted_prompt = analyzer.generate_targeted_prompt(error_paths, existing_tests)
+            
+            if not targeted_prompt:
+                return
+            
+            # Generate additional tests
+            send_event('generate', {
+                'progress': 10,
+                'count': 0,
+                'status': 'in_progress',
+                'message': f'Generating targeted tests for {len(error_paths)} missing coverage paths'
+            })
+            
+            additional_tests = generator.generate_additional_tests(targeted_prompt)
+            
+            if not additional_tests or 'def test_' not in additional_tests:
+                print("   ⚠ No additional tests generated")
+                return
+            
+            # Append to test file
+            with open(self.test_file_path, 'a') as f:
+                f.write('\n\n# Additional tests for coverage improvement\n')
+                f.write(additional_tests)
+            
+            # Count new tests
+            new_test_count = additional_tests.count('def test_')
+            print(f"   ✓ Added {new_test_count} targeted tests")
+            
+            send_event('generate', {
+                'progress': 100,
+                'count': new_test_count,
+                'status': 'success',
+                'message': f'Generated {new_test_count} additional tests for missing coverage'
+            })
+            
+            # Re-run tests
+            self._log("Re-executing tests with additional coverage")
+            self.run_tests_fixed()
+            time.sleep(1)
+            
+            # Re-calculate coverage
+            self._log("Re-analyzing code coverage")
+            self.calculate_coverage_final_fix()
+            
+            print(f"   ✓ Updated coverage: {self.actual_coverage}%")
+            
+        except Exception as e:
+            print(f"   ⚠ Coverage refinement error: {e}")
+            import traceback
+            traceback.print_exc()
     
     def show_comparison(self):
         """Comparison"""
