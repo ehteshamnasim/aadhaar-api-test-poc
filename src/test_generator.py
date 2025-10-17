@@ -3,21 +3,20 @@ import json
 from typing import Dict, List
 
 class TestGenerator:
-    """Generate pytest tests using Ollama with optimized settings"""
+    """Generate pytest tests using Ollama Llama3:70b"""
     
     def __init__(self, ollama_url: str = "http://localhost:11434"):
         self.ollama_url = ollama_url
         self.model = "qwen2.5-coder:14b"
-        print(f"   🤖 Using model: {self.model}")
     
     def generate_tests(self, parsed_spec: Dict) -> str:
-        """Generate complete test file from parsed spec with optimized settings"""
+        """Generate complete test file from parsed spec"""
         prompt = self._build_prompt(parsed_spec)
         
         print(f"   Using Ollama model: {self.model}")
         print(f"   Ollama URL: {self.ollama_url}")
         
-        # Call Ollama API with optimized parameters for speed
+        # Call Ollama API
         response = requests.post(
             f"{self.ollama_url}/api/generate",
             json={
@@ -25,17 +24,11 @@ class TestGenerator:
                 "prompt": prompt,
                 "stream": False,
                 "options": {
-                    "temperature": 0.1,      # Lower = faster + more focused
-                    "num_predict": 1500,     # Reduced tokens = faster generation
-                    "top_p": 0.9,
-                    "top_k": 40,
-                    "repeat_penalty": 1.1,
-                    "num_ctx": 2048,         # Smaller context = faster
-                    "num_thread": 8,         # Parallel processing
-                    "num_gpu": 1             # Use GPU if available
+                    "temperature": 0.3,
+                    "num_predict": 2000
                 }
             },
-            timeout=180  # 3 minutes - much faster timeout
+            timeout=300  # 5 minutes timeout for large model
         )
         
         if response.status_code != 200:
@@ -53,13 +46,46 @@ class TestGenerator:
         return test_code
     
     def _build_prompt(self, parsed_spec: Dict) -> str:
-        """Build concise prompt for fast LLM generation"""
+        """Build prompt for LLM"""
         endpoints = parsed_spec['endpoints']
         
-        # Simplified prompt for speed
-        prompt = f"""Generate pytest tests for REST API. Use @pytest.mark.parametrize to reduce code.
+        prompt = f"""You are an expert Python test engineer. Generate pytest test code for the following REST API.
 
-SETUP:
+Requirements:
+- Use pytest framework
+- Import Flask app directly: from api.dummy_aadhaar_api import app
+- Use Flask test client: client = app.test_client()
+- Make requests using: response = client.post('/api/v1/path', json={{...}})
+- Include tests for success cases (2xx responses)
+- Include tests for error cases (4xx responses)
+- Test with valid and invalid payloads
+- Add clear test names and docstrings
+- Use pytest fixtures for test client
+- Follow PEP 8 style guide
+
+API Endpoints to test:
+
+"""
+        
+        for ep in endpoints:
+            prompt += f"\n{ep['method']} {ep['path']}\n"
+            prompt += f"Summary: {ep['summary']}\n"
+            
+            if ep['request_body'].get('properties'):
+                prompt += f"Request body fields: {list(ep['request_body']['properties'].keys())}\n"
+                prompt += f"Required fields: {ep['request_body'].get('required_fields', [])}\n"
+            
+            prompt += f"Expected responses: {list(ep['responses'].keys())}\n"
+            prompt += "\n"
+        
+        prompt += """
+Generate ONLY the Python code for pytest tests. Include:
+1. Import statements (pytest, from api.dummy_aadhaar_api import app)
+2. Pytest fixture for test client
+3. Test functions using client.post(), client.get(), etc.
+4. Assert statements for status codes and response structure
+
+Example structure:
 ```python
 import pytest
 from api.dummy_aadhaar_api import app
@@ -67,25 +93,13 @@ from api.dummy_aadhaar_api import app
 @pytest.fixture
 def client():
     return app.test_client()
+
+def test_example(client):
+    response = client.post('/api/v1/path', json={{"field": "value"}})
+    assert response.status_code == 200
 ```
 
-ENDPOINTS:
-"""
-        
-        for ep in endpoints:
-            prompt += f"{ep['method']} {ep['path']}"
-            if ep['request_body'].get('required_fields'):
-                prompt += f" (Required: {ep['request_body']['required_fields']})"
-            prompt += "\n"
-        
-        prompt += """
-Generate 3-4 tests per endpoint:
-1. Valid success case
-2. Missing required field (use parametrize for multiple fields)
-3. Invalid format (use parametrize)
-4. Not found/Error case
-
-Use parametrize to combine similar tests. Keep it concise. Output only Python code, no explanations.
+Do not include explanations, just the code. Start directly with imports.
 """
         
         return prompt
@@ -99,14 +113,13 @@ Use parametrize to combine similar tests. Keep it concise. Output only Python co
             return False
     
     def check_model_exists(self) -> bool:
-        """Check if qwen2.5-coder:14b model exists"""
+        """Check if llama3:70b model exists"""
         try:
             response = requests.get(f"{self.ollama_url}/api/tags", timeout=5)
             if response.status_code == 200:
                 models = response.json().get('models', [])
                 for model in models:
-                    model_name = model.get('name', '')
-                    if 'qwen2.5-coder' in model_name:
+                    if 'llama3:70b' in model.get('name', ''):
                         return True
             return False
         except:
@@ -129,11 +142,11 @@ if __name__ == '__main__':
     
     # Check model
     if not generator.check_model_exists():
-        print(f"⚠️  {generator.model} not found!")
-        print(f"   Pull it with: ollama pull {generator.model}")
+        print("⚠️  llama3:70b model not found!")
+        print("   Pull it with: ollama pull llama3:70b")
         exit(1)
     
-    print(f"✅ {generator.model} model found")
+    print("✅ llama3:70b model found")
     
     # Generate tests
     parser = OpenAPIParser('specs/aadhaar-api.yaml')
