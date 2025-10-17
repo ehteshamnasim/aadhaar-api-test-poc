@@ -3,286 +3,390 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>API Test Automation - Dashboard</title>
+    <title>API Test Automation Dashboard | Kyndryl</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <div class="header-content">
-                <div class="header-left">
-                    <h1>API Test Automation</h1>
-                    <p>Real-time test generation, execution, and code coverage analysis</p>
-                </div>
-                <div class="header-right">
-                    <div class="status-indicator">
-                        <span class="status-dot"></span>
-                        <span id="status">Initializing...</span>
-                    </div>
-                    <span id="timestamp" class="timestamp">-</span>
-                    <button id="reset-btn" class="reset-button" onclick="resetDashboard()">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-                        </svg>
-                        Reset
-                    </button>
+    <!-- Full Width Header -->
+    <header class="main-header">
+        <div class="header-container">
+            <div class="header-left">
+                <img src="https://s7d1.scene7.com/is/image/kyndryl/logo-header?qlt=85&ts=1712781462020&$SVG-Transparency$&dpr=off" alt="Kyndryl" class="logo">
+                <div class="header-divider"></div>
+                <div class="header-title">
+                    <h1>API Test Automation Platform</h1>
+                    <p>Intelligent Test Generation & Execution Pipeline</p>
                 </div>
             </div>
-        </header>
+            <div class="header-right">
+                <div class="header-stats">
+                    <div class="header-stat">
+                        <span class="stat-icon">●</span>
+                        <span class="stat-label">Status</span>
+                        <span id="status" class="stat-value">Initializing...</span>
+                    </div>
+                    <div class="header-stat">
+                        <span class="stat-icon">⏱</span>
+                        <span class="stat-label">Time</span>
+                        <span id="timestamp" class="stat-value">--:--:--</span>
+                    </div>
+                </div>
+                <button id="reset-btn" class="header-button" onclick="resetDashboard()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                    </svg>
+                    Reset Dashboard
+                </button>
+            </div>
+        </div>
+    </header>
 
-        <div class="main-layout">
-            <!-- Left Side: Metrics Grid -->
+    <!-- Main Content Area -->
+    <main class="main-content">
+        <div class="content-wrapper">
+            <!-- Left Panel: Metrics & Test Results -->
             <div class="left-panel">
-                <div class="metrics-grid">
-                    <!-- API Specification -->
-                    <div class="metric-card">
-                        <div class="metric-header">
-                            <h3>API Specification</h3>
-                            <span id="parse-status" class="status-badge">Pending</span>
-                        </div>
-                        <div class="metric-body">
-                            <div class="metric-row">
-                                <span class="metric-label">File</span>
-                                <span id="spec-file" class="metric-value">-</span>
-                            </div>
-                            <div class="metric-row">
-                                <span class="metric-label">Endpoints</span>
-                                <span id="endpoint-count" class="metric-value accent">0</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Test Generation -->
-                    <div class="metric-card">
-                        <div class="metric-header">
-                            <h3>Test Generation</h3>
-                            <span id="gen-status" class="status-badge">Pending</span>
-                        </div>
-                        <div class="metric-body">
-                            <div class="progress-container">
-                                <div id="gen-progress" class="progress-bar" style="width: 0%"></div>
-                            </div>
-                            <div class="metric-row">
-                                <span class="metric-label">Generated</span>
-                                <span id="tests-generated" class="metric-value accent">0</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Code Validation -->
-                    <div class="metric-card">
-                        <div class="metric-header">
-                            <h3>Code Validation</h3>
-                            <span id="validation-status" class="status-badge">Pending</span>
-                        </div>
-                        <div class="metric-body">
-                            <div class="validation-checks">
-                                <div class="check-item">
-                                    <span>Syntax</span>
-                                    <span id="syntax-check" class="check-status">-</span>
-                                </div>
-                                <div class="check-item">
-                                    <span>Imports</span>
-                                    <span id="import-check" class="check-status">-</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Test Execution -->
-                    <div class="metric-card">
-                        <div class="metric-header">
-                            <h3>Test Execution</h3>
-                            <div class="test-stats">
-                                <span class="test-stat success"><span id="tests-passed">0</span> ✓</span>
-                                <span class="test-stat error"><span id="tests-failed">0</span> ✗</span>
-                            </div>
-                        </div>
-                        <div class="metric-body">
-                            <div class="metric-row">
-                                <span class="metric-label">Total Tests</span>
-                                <span id="tests-total" class="metric-value">0</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Contract Testing -->
-                    <div class="metric-card">
-                        <div class="metric-header">
-                            <h3>Contract Testing</h3>
-                        </div>
-                        <div class="metric-body">
-                            <div class="metric-stats-row">
-                                <div class="stat-item">
-                                    <span class="stat-number" id="contracts-tested">0</span>
-                                    <span class="stat-label">Tested</span>
-                                </div>
-                                <div class="stat-item">
-                                    <span class="stat-number success" id="contracts-passed">0</span>
-                                    <span class="stat-label">Passed</span>
-                                </div>
-                                <div class="stat-item">
-                                    <span class="stat-number error" id="contracts-failed">0</span>
-                                    <span class="stat-label">Failed</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Code Coverage -->
-                    <div class="metric-card">
-                        <div class="metric-header">
-                            <h3>Code Coverage</h3>
-                        </div>
-                        <div class="metric-body">
-                            <div class="coverage-visual">
-                                <svg width="80" height="80" class="coverage-ring">
-                                    <circle cx="40" cy="40" r="35" fill="none" stroke="#f5f5f5" stroke-width="8"/>
-                                    <circle id="coverage-circle" cx="40" cy="40" r="35" fill="none" 
-                                            stroke="#f44d30" stroke-width="8" 
-                                            stroke-dasharray="220" stroke-dashoffset="220"
-                                            transform="rotate(-90 40 40)"/>
+                <!-- Metrics Grid -->
+                <div class="metrics-section">
+                    <!-- Row 1: Core Metrics -->
+                    <div class="metrics-row">
+                        <!-- API Specification Card -->
+                        <div class="metric-card">
+                            <div class="card-icon">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                    <polyline points="14 2 14 8 20 8"/>
                                 </svg>
-                                <div class="coverage-text" id="coverage-text">0%</div>
+                            </div>
+                            <div class="card-content">
+                                <h3>API Specification</h3>
+                                <div class="card-metrics">
+                                    <div class="metric-item">
+                                        <span class="metric-label">File</span>
+                                        <span id="spec-file" class="metric-value truncate">-</span>
+                                    </div>
+                                    <div class="metric-item highlight">
+                                        <span class="metric-label">Endpoints</span>
+                                        <span id="endpoint-count" class="metric-value large">0</span>
+                                    </div>
+                                </div>
+                                <div class="card-status">
+                                    <span id="parse-status" class="status-indicator">Pending</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Test Generation Card -->
+                        <div class="metric-card">
+                            <div class="card-icon">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                                </svg>
+                            </div>
+                            <div class="card-content">
+                                <h3>Test Generation</h3>
+                                <div class="generation-progress">
+                                    <div class="progress-header">
+                                        <span>Progress</span>
+                                        <span id="gen-percentage">0%</span>
+                                    </div>
+                                    <div class="progress-track">
+                                        <div id="gen-progress" class="progress-fill"></div>
+                                    </div>
+                                </div>
+                                <div class="card-metrics">
+                                    <div class="metric-item highlight">
+                                        <span class="metric-label">Tests Created</span>
+                                        <span id="tests-generated" class="metric-value large">0</span>
+                                    </div>
+                                </div>
+                                <div class="card-status">
+                                    <span id="gen-status" class="status-indicator">Pending</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Code Validation Card -->
+                        <div class="metric-card">
+                            <div class="card-icon">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="20 6 9 17 4 12"/>
+                                </svg>
+                            </div>
+                            <div class="card-content">
+                                <h3>Code Validation</h3>
+                                <div class="validation-grid">
+                                    <div class="validation-item">
+                                        <span class="validation-label">Syntax</span>
+                                        <span id="syntax-check" class="validation-status">-</span>
+                                    </div>
+                                    <div class="validation-item">
+                                        <span class="validation-label">Imports</span>
+                                        <span id="import-check" class="validation-status">-</span>
+                                    </div>
+                                </div>
+                                <div class="card-status">
+                                    <span id="validation-status" class="status-indicator">Pending</span>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Version Control -->
-                    <div class="metric-card">
-                        <div class="metric-header">
-                            <h3>Version Control</h3>
+                    <!-- Row 2: Execution Metrics -->
+                    <div class="metrics-row">
+                        <!-- Test Execution Card -->
+                        <div class="metric-card wide">
+                            <div class="card-icon">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polygon points="5 3 19 12 5 21 5 3"/>
+                                </svg>
+                            </div>
+                            <div class="card-content">
+                                <h3>Test Execution</h3>
+                                <div class="execution-stats">
+                                    <div class="stat-box success">
+                                        <span class="stat-number" id="tests-passed">0</span>
+                                        <span class="stat-label">Passed</span>
+                                    </div>
+                                    <div class="stat-box error">
+                                        <span class="stat-number" id="tests-failed">0</span>
+                                        <span class="stat-label">Failed</span>
+                                    </div>
+                                    <div class="stat-box total">
+                                        <span class="stat-number" id="tests-total">0</span>
+                                        <span class="stat-label">Total</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="metric-body">
-                            <div class="vc-status">
-                                <div class="vc-item">
-                                    <span>Repository</span>
-                                    <span id="git-repo" class="vc-value">-</span>
-                                </div>
-                                <div class="vc-item">
-                                    <span>Commit</span>
-                                    <span id="git-commit" class="vc-badge">Pending</span>
-                                </div>
-                                <div class="vc-item">
-                                    <span>Push</span>
-                                    <span id="git-push" class="vc-badge">Pending</span>
+
+                        <!-- Code Coverage Card -->
+                        <div class="metric-card">
+                            <div class="card-icon">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"/>
+                                    <path d="M12 6v6l4 2"/>
+                                </svg>
+                            </div>
+                            <div class="card-content">
+                                <h3>Code Coverage</h3>
+                                <div class="coverage-container">
+                                    <div class="coverage-ring-wrapper">
+                                        <svg class="coverage-ring" width="100" height="100">
+                                            <circle cx="50" cy="50" r="40" fill="none" stroke="#f0f0f0" stroke-width="8"/>
+                                            <circle id="coverage-circle" cx="50" cy="50" r="40" fill="none" 
+                                                    stroke="#f44d30" stroke-width="8" 
+                                                    stroke-dasharray="251.2" stroke-dashoffset="251.2"
+                                                    transform="rotate(-90 50 50)"/>
+                                        </svg>
+                                        <div class="coverage-percentage">
+                                            <span id="coverage-text">0%</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- CI/CD Pipeline -->
-                    <div class="metric-card">
-                        <div class="metric-header">
-                            <h3>CI/CD Pipeline</h3>
-                            <span id="cicd-status" class="status-badge">Not Started</span>
+                    <!-- Row 3: Infrastructure -->
+                    <div class="metrics-row">
+                        <!-- Contract Testing Card -->
+                        <div class="metric-card">
+                            <div class="card-icon">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                    <line x1="9" y1="11" x2="15" y2="11"/>
+                                    <line x1="9" y1="15" x2="15" y2="15"/>
+                                </svg>
+                            </div>
+                            <div class="card-content">
+                                <h3>Contract Testing</h3>
+                                <div class="contract-stats">
+                                    <div class="contract-item">
+                                        <span id="contracts-tested" class="contract-number">0</span>
+                                        <span class="contract-label">Tested</span>
+                                    </div>
+                                    <div class="contract-item success">
+                                        <span id="contracts-passed" class="contract-number">0</span>
+                                        <span class="contract-label">Passed</span>
+                                    </div>
+                                    <div class="contract-item error">
+                                        <span id="contracts-failed" class="contract-number">0</span>
+                                        <span class="contract-label">Failed</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="metric-body">
-                            <div class="metric-row">
-                                <span class="metric-label">Build</span>
-                                <span id="build-status" class="metric-value">-</span>
+
+                        <!-- Version Control Card -->
+                        <div class="metric-card">
+                            <div class="card-icon">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
+                                </svg>
+                            </div>
+                            <div class="card-content">
+                                <h3>Version Control</h3>
+                                <div class="vc-list">
+                                    <div class="vc-item">
+                                        <span>Repository</span>
+                                        <span id="git-repo" class="vc-status">-</span>
+                                    </div>
+                                    <div class="vc-item">
+                                        <span>Commit</span>
+                                        <span id="git-commit" class="vc-indicator">Pending</span>
+                                    </div>
+                                    <div class="vc-item">
+                                        <span>Push</span>
+                                        <span id="git-push" class="vc-indicator">Pending</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- CI/CD Pipeline Card -->
+                        <div class="metric-card">
+                            <div class="card-icon">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="3"/>
+                                    <path d="M12 1v6m0 6v6m4.22-13.22l4.24 4.24m-4.24 4.24l4.24 4.24M20.97 12H15m-6 0H3.03m1.51-6.46L8.78 9.78m-4.24 4.24l4.24 4.24"/>
+                                </svg>
+                            </div>
+                            <div class="card-content">
+                                <h3>CI/CD Pipeline</h3>
+                                <div class="pipeline-status">
+                                    <div class="pipeline-item">
+                                        <span>Status</span>
+                                        <span id="cicd-status" class="pipeline-indicator">Not Started</span>
+                                    </div>
+                                    <div class="pipeline-item">
+                                        <span>Build</span>
+                                        <span id="build-status" class="pipeline-value">-</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Action Buttons -->
-                <div class="action-buttons">
-                    <a href="/coverage-report" target="_blank" id="coverage-btn" class="btn btn-primary" style="display: none;">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <div class="action-section">
+                    <a href="/coverage-report" target="_blank" id="coverage-btn" class="action-btn primary" style="display: none;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                             <polyline points="14 2 14 8 20 8"/>
-                            <line x1="16" y1="13" x2="8" y2="13"/>
-                            <line x1="16" y1="17" x2="8" y2="17"/>
-                            <polyline points="10 9 9 9 8 9"/>
                         </svg>
-                        Coverage Report
+                        View Coverage Report
                     </a>
-                    <a href="/generated-tests" id="tests-btn" class="btn btn-secondary" style="display: none;" target="_blank">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <a href="/generated-tests" id="tests-btn" class="action-btn secondary" style="display: none;" target="_blank">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
                             <polyline points="22 4 12 14.01 9 11.01"/>
                         </svg>
-                        View Tests
+                        View Generated Tests
                     </a>
+                </div>
+
+                <!-- Test Results Panel (Dynamically Shown) -->
+                <div id="test-results-section" class="test-results-section" style="display: none;">
+                    <div class="section-header">
+                        <h2>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                                <polyline points="22 4 12 14.01 9 11.01"/>
+                            </svg>
+                            Test Execution Results
+                        </h2>
+                        <button class="close-btn" onclick="closeTestResults()">×</button>
+                    </div>
+                    <div class="test-results-container">
+                        <div id="test-details-list" class="test-list">
+                            <!-- Test results will be populated here -->
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Comparison Section -->
                 <div id="comparison-section" class="comparison-section" style="display: none;">
                     <div class="section-header">
-                        <h3>Manual vs AI Automation</h3>
+                        <h2>Performance Comparison</h2>
                     </div>
-                    <div class="comparison-grid">
-                        <div class="comparison-card">
-                            <div class="comparison-title">Manual Approach</div>
-                            <div class="comparison-metric">
-                                <span>Effort</span>
-                                <span id="before-effort" class="comparison-value">-</span>
+                    <div class="comparison-content">
+                        <div class="comparison-card manual">
+                            <div class="comparison-header">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                                    <circle cx="9" cy="7" r="4"/>
+                                </svg>
+                                <h3>Manual Testing</h3>
                             </div>
-                            <div class="comparison-metric">
-                                <span>Test Cases</span>
-                                <span id="before-tests" class="comparison-value">-</span>
-                            </div>
-                            <div class="comparison-metric">
-                                <span>Coverage</span>
-                                <span id="before-coverage" class="comparison-value">-</span>
+                            <div class="comparison-metrics">
+                                <div class="comparison-metric">
+                                    <span class="metric-label">Estimated Effort</span>
+                                    <span id="before-effort" class="metric-value">-</span>
+                                </div>
+                                <div class="comparison-metric">
+                                    <span class="metric-label">Test Cases</span>
+                                    <span id="before-tests" class="metric-value">-</span>
+                                </div>
+                                <div class="comparison-metric">
+                                    <span class="metric-label">Coverage</span>
+                                    <span id="before-coverage" class="metric-value">-</span>
+                                </div>
                             </div>
                         </div>
-                        <div class="comparison-card highlight">
-                            <div class="comparison-title">AI Automation</div>
-                            <div class="comparison-metric">
-                                <span>Time</span>
-                                <span id="after-time" class="comparison-value accent">-</span>
+                        <div class="comparison-vs">VS</div>
+                        <div class="comparison-card ai">
+                            <div class="comparison-header">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                                </svg>
+                                <h3>AI Automation</h3>
                             </div>
-                            <div class="comparison-metric">
-                                <span>Test Cases</span>
-                                <span id="after-tests" class="comparison-value accent">-</span>
-                            </div>
-                            <div class="comparison-metric">
-                                <span>Lines of Code</span>
-                                <span id="after-lines" class="comparison-value accent">-</span>
+                            <div class="comparison-metrics">
+                                <div class="comparison-metric">
+                                    <span class="metric-label">Time Taken</span>
+                                    <span id="after-time" class="metric-value highlight">-</span>
+                                </div>
+                                <div class="comparison-metric">
+                                    <span class="metric-label">Test Cases</span>
+                                    <span id="after-tests" class="metric-value highlight">-</span>
+                                </div>
+                                <div class="comparison-metric">
+                                    <span class="metric-label">Lines of Code</span>
+                                    <span id="after-lines" class="metric-value highlight">-</span>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Right Side: Activity & Results -->
+            <!-- Right Panel: Activity Log (Full Width) -->
             <div class="right-panel">
-                <!-- Test Results Panel -->
-                <div class="panel test-results-panel">
-                    <div class="panel-header">
-                        <h3>Test Results</h3>
-                        <span class="panel-badge">Real-time</span>
-                    </div>
-                    <div class="panel-body">
-                        <div id="test-details-list" class="test-results-list">
-                            <div class="empty-state">
-                                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2">
-                                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                                    <polyline points="22 4 12 14.01 9 11.01"/>
-                                </svg>
-                                <p>No test results yet</p>
-                            </div>
+                <div class="activity-log-section">
+                    <div class="log-header">
+                        <h2>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                            </svg>
+                            Activity Monitor
+                        </h2>
+                        <div class="log-controls">
+                            <button class="log-btn" onclick="clearLogs()">Clear</button>
+                            <button class="log-btn" onclick="exportLogs()">Export</button>
                         </div>
                     </div>
-                </div>
-
-                <!-- Activity Log Panel -->
-                <div class="panel activity-log-panel">
-                    <div class="panel-header">
-                        <h3>Activity Log</h3>
-                        <span class="panel-badge">Live</span>
-                    </div>
-                    <div class="panel-body">
-                        <div id="log" class="activity-log-list">
-                            <!-- Logs will be added here dynamically -->
-                        </div>
+                    <div id="log" class="log-container">
+                        <!-- Activity logs will be populated here -->
                     </div>
                 </div>
             </div>
         </div>
-    </div>
+    </main>
 
     <script src="app.js"></script>
 </body>
