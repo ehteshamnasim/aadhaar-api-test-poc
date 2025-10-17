@@ -1,4 +1,4 @@
-"""AI-Generated Tests v11 - 2025-10-17 02:31:03"""
+"""AI-Generated Tests v11 - 2025-10-17 13:46:54"""
 import pytest
 from api.dummy_aadhaar_api import app
 
@@ -14,25 +14,25 @@ def test_aadhaar_demographics(client, input_data, expected_status, test_descript
     assert response.status_code == expected_status, f"Failed for: {test_description}"
 
 
-def test_ekyc(client, input_data, expected_status, test_description):
-    """Test eKYC endpoint with various input scenarios"""
+def test_aadhaar_ekyc(client, input_data, expected_status, test_description):
+    """Test Aadhaar eKYC endpoint with various input scenarios"""
     response = client.post('/api/v1/aadhaar/ekyc', json=input_data)
     assert response.status_code == expected_status, f"Failed for: {test_description}"
 
-def test_generate_otp(client, input_data, expected_status, test_description):
-    """Test OTP generation endpoint with various input scenarios"""
+def test_aadhaar_otp_generate(client, input_data, expected_status, test_description):
+    """Test Aadhaar OTP generate endpoint with various input scenarios"""
     response = client.post('/api/v1/aadhaar/otp/generate', json=input_data)
     assert response.status_code == expected_status, f"Failed for: {test_description}"
 
 
-def test_verify_aadhaar(client, input_data, expected_status, test_description):
-    """Test Aadhaar verification endpoint with various input scenarios"""
-    response = client.post('/api/v1/aadhaar/verify', json=input_data)
+def test_aadhaar_otp_verify(client, input_data, expected_status, test_description):
+    """Test Aadhaar OTP verify endpoint with various input scenarios"""
+    response = client.post('/api/v1/aadhaar/otp/verify', json=input_data)
     assert response.status_code == expected_status, f"Failed for: {test_description}"
 
 
-def test_verify_otp(client, input_data, expected_status, test_description):
-    """Test OTP verification endpoint with various input scenarios"""
-    response = client.post('/api/v1/aadhaar/otp/verify', json=input_data)
+def test_aadhaar_verify(client, input_data, expected_status, test_description):
+    """Test Aadhaar verify endpoint with various input scenarios"""
+    response = client.post('/api/v1/aadhaar/verify', json=input_data)
     assert response.status_code == expected_status, f"Failed for: {test_description}"
 
