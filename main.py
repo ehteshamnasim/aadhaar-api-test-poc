@@ -549,34 +549,99 @@ def client():
         })
     
     def git_commit_and_push(self):
-        """Git ops"""
+        """Git operations with enhanced error handling and sync"""
         try:
-            result = subprocess.run(['git', 'status', '--porcelain', self.test_file_path], capture_output=True, text=True)
+            # Check if there are changes
+            result = subprocess.run(['git', 'status', '--porcelain', self.test_file_path], 
+                                   capture_output=True, text=True, timeout=10)
             
             if not result.stdout.strip():
+                print("   ⚠ No changes to commit")
                 send_event('git', {'committed': False, 'pushed': False, 'message': 'No changes'})
                 return
             
-            subprocess.run(['git', 'add', self.test_file_path], check=True)
-            subprocess.run(['git', 'commit', '-m', f'🤖 v{self.version} - {datetime.now().strftime("%Y-%m-%d %H:%M")}', '--no-verify'], capture_output=True, check=True)
+            # Stage changes
+            subprocess.run(['git', 'add', self.test_file_path], check=True, timeout=10)
             
-            result = subprocess.run(['git', 'rev-parse', '--short', 'HEAD'], capture_output=True, text=True)
+            # Commit
+            commit_msg = f'🤖 AI-generated tests v{self.version} - {self.unique_test_count} tests, {self.actual_coverage}% coverage'
+            commit_result = subprocess.run(
+                ['git', 'commit', '-m', commit_msg, '--no-verify'], 
+                capture_output=True, text=True, check=True, timeout=10
+            )
+            
+            # Get commit hash
+            result = subprocess.run(['git', 'rev-parse', '--short', 'HEAD'], 
+                                   capture_output=True, text=True, timeout=10)
             commit_hash = result.stdout.strip()
             
             print(f"   ✓ Committed: {commit_hash}")
+            send_event('git', {'committed': True, 'pushed': False, 'message': f'Commit: {commit_hash}'})
             
-            send_event('git', {'committed': True, 'pushed': False, 'message': f'({commit_hash})'})
-            
-            result = subprocess.run(['git', 'branch', '--show-current'], capture_output=True, text=True)
+            # Get current branch
+            result = subprocess.run(['git', 'branch', '--show-current'], 
+                                   capture_output=True, text=True, timeout=10)
             branch = result.stdout.strip() or 'main'
             
-            if 'origin' in subprocess.run(['git', 'remote'], capture_output=True, text=True).stdout:
-                if subprocess.run(['git', 'push', 'origin', branch], capture_output=True, timeout=30).returncode == 0:
-                    print(f"   ✓ Pushed to {branch}")
-                    send_event('git', {'committed': True, 'pushed': True, 'message': f'Deployed to {branch}'})
-                    send_event('cicd', {'status': 'triggered', 'message': 'Pipeline initiated', 'build': 'GitHub'})
+            # Check if remote exists
+            remote_result = subprocess.run(['git', 'remote'], 
+                                          capture_output=True, text=True, timeout=10)
+            
+            if 'origin' not in remote_result.stdout:
+                print("   ⚠ No remote 'origin' configured - skipping push")
+                send_event('git', {'committed': True, 'pushed': False, 'message': 'No remote configured'})
+                return
+            
+            # Fetch latest to check if we're behind
+            print(f"   Syncing with origin/{branch}...")
+            subprocess.run(['git', 'fetch', 'origin', branch], 
+                          capture_output=True, timeout=20)
+            
+            # Check if we need to pull
+            behind_result = subprocess.run(
+                ['git', 'rev-list', '--count', f'HEAD..origin/{branch}'],
+                capture_output=True, text=True, timeout=10
+            )
+            
+            commits_behind = int(behind_result.stdout.strip() or '0')
+            
+            if commits_behind > 0:
+                print(f"   ⚠ Branch is {commits_behind} commit(s) behind - pulling changes...")
+                pull_result = subprocess.run(
+                    ['git', 'pull', '--rebase', 'origin', branch],
+                    capture_output=True, text=True, timeout=30
+                )
+                if pull_result.returncode != 0:
+                    print(f"   ✗ Pull failed: {pull_result.stderr[:100]}")
+                    send_event('git', {'committed': True, 'pushed': False, 'message': 'Pull failed - manual intervention needed'})
+                    return
+            
+            # Try to push
+            print(f"   Pushing to origin/{branch}...")
+            push_result = subprocess.run(
+                ['git', 'push', 'origin', branch], 
+                capture_output=True, text=True, timeout=30
+            )
+            
+            if push_result.returncode == 0:
+                print(f"   ✓ Pushed to {branch}")
+                send_event('git', {'committed': True, 'pushed': True, 'message': f'Deployed to {branch}'})
+                send_event('cicd', {'status': 'triggered', 'message': 'Pipeline initiated', 'build': 'in_progress'})
+            else:
+                error_msg = push_result.stderr.strip() or 'Push failed'
+                print(f"   ✗ Push failed: {error_msg[:100]}")
+                send_event('git', {'committed': True, 'pushed': False, 'message': f'Push failed: {error_msg[:50]}'})
+                
+        except subprocess.TimeoutExpired:
+            print("   ✗ Git operation timed out")
+            send_event('git', {'committed': False, 'pushed': False, 'message': 'Timeout'})
+        except subprocess.CalledProcessError as e:
+            error_detail = e.stderr.decode() if hasattr(e, 'stderr') and e.stderr else str(e)
+            print(f"   ✗ Git error: {error_detail[:100]}")
+            send_event('git', {'committed': False, 'pushed': False, 'message': 'Git error'})
         except Exception as e:
-            print(f"   ✗ Git error: {e}")
+            print(f"   ✗ Unexpected error: {e}")
+            send_event('git', {'committed': False, 'pushed': False, 'message': str(e)[:50]})
     
     def print_summary(self):
         """Summary"""
