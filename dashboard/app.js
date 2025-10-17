@@ -386,7 +386,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setInterval(updateTimestamp, 1000);
     
     // Hide buttons initially
-    // document.getElementById('coverage-btn').style.display = 'none';
+    document.getElementById('coverage-btn').style.display = 'none';
     document.getElementById('tests-btn').style.display = 'none';
     document.getElementById('test-results-section').style.display = 'none';
     
