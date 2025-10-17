@@ -210,9 +210,46 @@ function connectSSE() {
                 break;
                 
             case 'clear':
+                // Reset all metric values
+                document.getElementById('spec-file').textContent = '-';
+                document.getElementById('endpoint-count').textContent = '0';
+                document.getElementById('tests-generated').textContent = '0';
+                document.getElementById('tests-passed').textContent = '0';
+                document.getElementById('tests-failed').textContent = '0';
+                document.getElementById('tests-total').textContent = '0';
+                document.getElementById('contracts-tested').textContent = '0';
+                document.getElementById('contracts-passed').textContent = '0';
+                document.getElementById('contracts-failed').textContent = '0';
+                document.getElementById('git-repo').textContent = '-';
+                document.getElementById('build-status').textContent = '-';
+                
+                // Reset badges
+                updateBadge('parse-status', 'Pending');
+                updateBadge('gen-status', 'Pending');
+                updateBadge('syntax-check', '-');
+                updateBadge('import-check', '-');
+                updateBadge('validation-status', 'Pending');
+                updateBadge('git-commit', 'Pending');
+                updateBadge('git-push', 'Pending');
+                updateBadge('cicd-status', 'Not Started');
+                
+                // Reset progress
+                document.getElementById('gen-progress').style.width = '0%';
+                document.getElementById('gen-percentage').textContent = '0%';
+                updateCoverage(0);
+                
+                // Hide sections
+                document.getElementById('comparison-section').style.display = 'none';
+                document.getElementById('test-results-section').style.display = 'none';
                 document.getElementById('coverage-btn').style.display = 'none';
                 document.getElementById('tests-btn').style.display = 'none';
-                document.getElementById('test-results-section').style.display = 'none';
+                
+                // Clear test results list
+                const testDetailsList = document.getElementById('test-details-list');
+                if (testDetailsList) {
+                    testDetailsList.innerHTML = '';
+                }
+                
                 addLog('Starting new automation run...', 'info');
                 break;
                 

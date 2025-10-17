@@ -302,6 +302,7 @@ body {
 
 .progress-fill {
     height: 100%;
+    width: 0%;
     background: linear-gradient(90deg, var(--primary), var(--primary-hover));
     transition: width 0.3s ease;
     border-radius: 4px;
