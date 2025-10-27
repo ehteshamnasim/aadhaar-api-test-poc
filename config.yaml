@@ -1,0 +1,97 @@
+# API Test Automation Configuration
+
+# Features
+features:
+  self_healing:
+    enabled: true
+    confidence_threshold: 0.75  # Auto-apply fixes with confidence >= 75%
+    ai_model: "qwen2.5-coder:14b"
+    ollama_url: "http://localhost:11434"
+  
+  error_analysis:
+    enabled: true
+    include_curl_commands: true
+    mask_sensitive_data: true
+  
+  api_diff:
+    enabled: true
+    check_on_startup: true
+    auto_detect_breaking_changes: true
+  
+  anomaly_detection:
+    enabled: true
+    window_size: 100  # Number of samples for baseline
+    response_time_multiplier: 3.0  # Standard deviations
+    max_error_rate_percent: 5.0
+  
+  traffic_replay:
+    enabled: true
+    recording_dir: "traffic_recordings"
+    mask_sensitive_fields: true
+  
+  importers:
+    enabled: true
+    supported_formats: ["postman", "insomnia"]
+
+# Test Generation
+test_generation:
+  model: "qwen2.5-coder:14b"
+  temperature: 0.3
+  timeout_seconds: 300
+  max_tests_per_endpoint: 3
+
+# Test Execution
+test_execution:
+  pytest_args: ["-v", "--tb=short"]
+  coverage_target: 85
+  parallel_execution: false
+  timeout_per_test: 30
+
+# Dashboard
+dashboard:
+  port: 8080
+  host: "localhost"
+  event_history_size: 100
+  auto_refresh: true
+
+# API Server
+api_server:
+  url: "http://localhost:5001"
+  timeout: 10
+  retry_attempts: 3
+  retry_delay_seconds: 1
+
+# Alerts
+alerts:
+  enable_notifications: false
+  email:
+    enabled: false
+    smtp_server: ""
+    smtp_port: 587
+    sender: ""
+    recipients: []
+  slack:
+    enabled: false
+    webhook_url: ""
+  
+# Logging
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  file: "automation.log"
+  max_file_size_mb: 10
+  backup_count: 5
+
+# Storage
+storage:
+  test_output_dir: "tests"
+  reports_dir: "reports"
+  recordings_dir: "traffic_recordings"
+  healing_reports_dir: "reports/healing"
+  diff_reports_dir: "reports/diffs"
+  anomaly_reports_dir: "reports/anomalies"
+
+# Sensitive Data Masking
+sensitive_data:
+  headers: ["authorization", "cookie", "x-api-key", "token"]
+  fields: ["password", "secret", "api_key", "token", "credit_card", "ssn", "aadhaar"]
+  mask_pattern: "***MASKED***"

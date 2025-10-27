@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI-Powered API Testing Platform - Self-Healing & Advanced Features</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="enhanced-style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Header -->
+    <header class="main-header">
+        <div class="header-container">
+            <div class="header-left">
+                <div class="logo-container">
+                    <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+                        <rect width="40" height="40" rx="8" fill="#4F46E5"/>
+                        <path d="M20 10L25 15L20 20L15 15L20 10Z" fill="white"/>
+                        <path d="M20 20L25 25L20 30L15 25L20 20Z" fill="#A5B4FC"/>
+                    </svg>
+                </div>
+                <div class="header-title">
+                    <h1>AI-Powered API Testing Platform</h1>
+                    <p>Self-Healing | Error Analysis | Anomaly Detection | Traffic Replay</p>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="header-stats">
+                    <div class="header-stat">
+                        <span class="stat-icon status-dot"></span>
+                        <span id="status" class="stat-value">Initializing...</span>
+                    </div>
+                    <div class="header-stat">
+                        <span class="stat-icon">⏱</span>
+                        <span id="timestamp" class="stat-value">--:--:--</span>
+                    </div>
+                </div>
+                <button class="btn btn-secondary" onclick="resetDashboard()">Reset</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Dashboard -->
+    <main class="dashboard">
+        <!-- Tab Navigation -->
+        <nav class="tab-nav">
+            <button class="tab-btn active" onclick="showTab('overview')">Overview</button>
+            <button class="tab-btn" onclick="showTab('self-healing')">
+                <span class="tab-badge" id="healing-badge">0</span>
+                Self-Healing
+            </button>
+            <button class="tab-btn" onclick="showTab('errors')">
+                <span class="tab-badge error" id="error-badge">0</span>
+                Error Analysis
+            </button>
+            <button class="tab-btn" onclick="showTab('api-diff')">API Diff</button>
+            <button class="tab-btn" onclick="showTab('anomalies')">
+                <span class="tab-badge warning" id="anomaly-badge">0</span>
+                Anomalies
+            </button>
+            <button class="tab-btn" onclick="showTab('traffic')">Traffic Replay</button>
+        </nav>
+
+        <!-- Tab Contents -->
+        <div class="tab-content">
+            <!-- Overview Tab -->
+            <div id="overview-tab" class="tab-pane active">
+                <div class="grid grid-3">
+                    <!-- API Specification -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>API Specification</h3>
+                            <span id="parse-status" class="badge">Pending</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="metric-row">
+                                <span class="metric-label">File:</span>
+                                <span id="spec-file" class="metric-value">-</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">Endpoints:</span>
+                                <span id="endpoint-count" class="metric-value large">0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Test Generation -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Test Generation</h3>
+                            <span id="gen-status" class="badge">Pending</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="progress-container">
+                                <div class="progress-header">
+                                    <span>Progress</span>
+                                    <span id="gen-percentage">0%</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div id="gen-progress" class="progress-fill"></div>
+                                </div>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">Tests Generated:</span>
+                                <span id="tests-generated" class="metric-value">0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Test Execution -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Test Execution</h3>
+                            <span id="exec-status" class="badge">Pending</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="test-results">
+                                <div class="result-item success">
+                                    <span class="result-label">Passed:</span>
+                                    <span id="tests-passed" class="result-value">0</span>
+                                </div>
+                                <div class="result-item error">
+                                    <span class="result-label">Failed:</span>
+                                    <span id="tests-failed" class="result-value">0</span>
+                                </div>
+                                <div class="result-item">
+                                    <span class="result-label">Total:</span>
+                                    <span id="tests-total" class="result-value">0</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Coverage & Activity Log -->
+                <div class="grid grid-2">
+                    <!-- Coverage -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Code Coverage</h3>
+                        </div>
+                        <div class="card-body center">
+                            <div class="coverage-circle">
+                                <svg width="160" height="160">
+                                    <circle cx="80" cy="80" r="70" stroke="#e5e7eb" stroke-width="12" fill="none"/>
+                                    <circle id="coverage-circle" cx="80" cy="80" r="70" stroke="#22c55e" 
+                                            stroke-width="12" fill="none" stroke-dasharray="439.6" 
+                                            stroke-dashoffset="439.6" stroke-linecap="round"
+                                            transform="rotate(-90 80 80)"/>
+                                </svg>
+                                <div class="coverage-text">
+                                    <span id="coverage-value">0%</span>
+                                    <span class="coverage-label">Coverage</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Activity Log -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Activity Log</h3>
+                            <button class="btn btn-sm" onclick="clearLogs()">Clear</button>
+                        </div>
+                        <div class="card-body">
+                            <div id="activity-log" class="activity-log"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Self-Healing Tab -->
+            <div id="self-healing-tab" class="tab-pane">
+                <div class="grid grid-2">
+                    <!-- Healing Summary -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Self-Healing Summary</h3>
+                            <span id="healing-status" class="badge">Monitoring</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="stats-grid">
+                                <div class="stat-box">
+                                    <span class="stat-number" id="total-healings">0</span>
+                                    <span class="stat-label">Total Healings</span>
+                                </div>
+                                <div class="stat-box success">
+                                    <span class="stat-number" id="auto-applied">0</span>
+                                    <span class="stat-label">Auto-Applied</span>
+                                </div>
+                                <div class="stat-box warning">
+                                    <span class="stat-number" id="manual-review">0</span>
+                                    <span class="stat-label">Need Review</span>
+                                </div>
+                                <div class="stat-box">
+                                    <span class="stat-number" id="avg-confidence">0%</span>
+                                    <span class="stat-label">Avg Confidence</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Healings -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Recent Healings</h3>
+                        </div>
+                        <div class="card-body">
+                            <div id="healing-list" class="healing-list">
+                                <div class="empty-state">
+                                    <p>No healings detected yet</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Code Diff Viewer -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Code Changes</h3>
+                        <button class="btn btn-sm" onclick="exportHealingReport()">Export Report</button>
+                    </div>
+                    <div class="card-body">
+                        <div id="code-diff" class="code-diff">
+                            <div class="empty-state">
+                                <p>Select a healing to view code changes</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Error Analysis Tab -->
+            <div id="errors-tab" class="tab-pane">
+                <div class="grid grid-2">
+                    <!-- Error Summary -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Error Summary</h3>
+                        </div>
+                        <div class="card-body">
+                            <div id="error-summary" class="error-summary">
+                                <div class="empty-state">
+                                    <p>No errors detected</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Error List -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Recent Errors</h3>
+                        </div>
+                        <div class="card-body">
+                            <div id="error-list" class="error-list">
+                                <div class="empty-state">
+                                    <p>No errors to display</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Error Details -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Error Details</h3>
+                    </div>
+                    <div class="card-body">
+                        <div id="error-details" class="error-details">
+                            <div class="empty-state">
+                                <p>Select an error to view details</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API Diff Tab -->
+            <div id="api-diff-tab" class="tab-pane">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>API Specification Comparison</h3>
+                        <div class="header-actions">
+                            <button class="btn btn-sm" onclick="refreshDiff()">Refresh</button>
+                            <button class="btn btn-sm" onclick="exportDiff()">Export</button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="diff-summary" class="diff-summary">
+                            <div class="empty-state">
+                                <p>No API changes detected</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Breaking Changes -->
+                <div class="grid grid-2">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Breaking Changes</h3>
+                            <span id="breaking-count" class="badge error">0</span>
+                        </div>
+                        <div class="card-body">
+                            <div id="breaking-changes" class="change-list">
+                                <div class="empty-state">
+                                    <p>No breaking changes</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Non-Breaking Changes</h3>
+                            <span id="non-breaking-count" class="badge success">0</span>
+                        </div>
+                        <div class="card-body">
+                            <div id="non-breaking-changes" class="change-list">
+                                <div class="empty-state">
+                                    <p>No non-breaking changes</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Anomalies Tab -->
+            <div id="anomalies-tab" class="tab-pane">
+                <div class="grid grid-3">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Response Time</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-container">
+                                <canvas id="response-time-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Error Rate</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-container">
+                                <canvas id="error-rate-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Anomaly Stats</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="stats-grid">
+                                <div class="stat-box error">
+                                    <span class="stat-number" id="critical-anomalies">0</span>
+                                    <span class="stat-label">Critical</span>
+                                </div>
+                                <div class="stat-box warning">
+                                    <span class="stat-number" id="high-anomalies">0</span>
+                                    <span class="stat-label">High</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Anomaly List -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Detected Anomalies</h3>
+                    </div>
+                    <div class="card-body">
+                        <div id="anomaly-list" class="anomaly-list">
+                            <div class="empty-state">
+                                <p>No anomalies detected</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Traffic Replay Tab -->
+            <div id="traffic-tab" class="tab-pane">
+                <div class="grid grid-2">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Traffic Recording</h3>
+                            <button class="btn btn-sm" id="record-btn" onclick="toggleRecording()">Start Recording</button>
+                        </div>
+                        <div class="card-body">
+                            <div id="recording-stats" class="stats-grid">
+                                <div class="stat-box">
+                                    <span class="stat-number" id="recorded-requests">0</span>
+                                    <span class="stat-label">Requests Recorded</span>
+                                </div>
+                                <div class="stat-box">
+                                    <span class="stat-number" id="recording-duration">0s</span>
+                                    <span class="stat-label">Duration</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Traffic Replay</h3>
+                            <button class="btn btn-sm" onclick="replayTraffic()">Replay</button>
+                        </div>
+                        <div class="card-body">
+                            <div id="replay-stats" class="stats-grid">
+                                <div class="stat-box success">
+                                    <span class="stat-number" id="replayed-success">0</span>
+                                    <span class="stat-label">Successful</span>
+                                </div>
+                                <div class="stat-box error">
+                                    <span class="stat-number" id="replayed-failed">0</span>
+                                    <span class="stat-label">Failed</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recorded Traffic List -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Recorded Traffic</h3>
+                        <div class="header-actions">
+                            <button class="btn btn-sm" onclick="exportTraffic()">Export</button>
+                            <button class="btn btn-sm" onclick="generateFromTraffic()">Generate Tests</button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="traffic-list" class="traffic-list">
+                            <div class="empty-state">
+                                <p>No traffic recorded yet</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="app.js"></script>
+    <script src="enhanced-app.js"></script>
+</body>
+</html>
