@@ -592,25 +592,67 @@ def client():
         Returns:
             Healed code snippet or None
         """
-        # Simple healing logic for demonstration
-        if 'assert 200 ==' in reason and '401' in reason:
-            return f"""def {test_name}(client):
-    # Healed: Added authentication header
-    response = client.post('/api/v1/aadhaar/generate-otp',
-        headers={{'Authorization': 'Bearer test-token'}})
-    assert response.status_code == 200"""
+        import re
         
-        elif 'assert 201 == 200' in reason or 'assert 200' in reason and '201' in reason:
-            return f"""def {test_name}(client):
-    # Healed: Updated assertion to expect 201 instead of 200
-    response = client.post('/api/v1/aadhaar/verify', json={{'aadhaar_number': '123456789012'}})
-    assert response.status_code == 201  # Changed from 200 to 201"""
+        # Extract status code assertion failures
+        # Matches patterns like: "assert 200 == 400", "assert 201 == 200", etc.
+        status_code_pattern = r'assert (\d{3}) == (\d{3})'
+        match = re.search(status_code_pattern, reason)
         
-        elif 'assert 400 ==' in reason and '200' in reason:
-            return f"""def {test_name}(client):
-    # Healed: Updated assertion to match actual response
-    response = client.post('/api/v1/aadhaar/generate-otp')
-    assert response.status_code == 200  # Changed from 400"""
+        if match:
+            actual_code = match.group(1)  # The value that was received
+            expected_code = match.group(2)  # The value that was expected
+            
+            # Determine the reason for the change
+            if actual_code == '401':
+                change_reason = f"API now requires authentication (401), was expecting {expected_code}"
+            elif actual_code == '403':
+                change_reason = f"Access forbidden (403), was expecting {expected_code}"
+            elif actual_code == '400':
+                change_reason = f"Bad request (400), was expecting {expected_code}"
+            elif actual_code == '201':
+                change_reason = f"Resource created (201), was expecting {expected_code}"
+            elif actual_code == '404':
+                change_reason = f"Resource not found (404), was expecting {expected_code}"
+            elif actual_code == '500':
+                change_reason = f"Server error (500), was expecting {expected_code}"
+            else:
+                change_reason = f"Status code changed from {expected_code} to {actual_code}"
+            
+            return f"""# HEALED: {change_reason}
+# Original assertion: assert response.status_code == {expected_code}
+# New assertion: assert response.status_code == {actual_code}
+
+def {test_name}(client):
+    # Test logic here...
+    response = client.post('/api/v1/endpoint', json={{}})
+    assert response.status_code == {actual_code}  # Auto-healed: changed from {expected_code}"""
+        
+        # Handle KeyError (missing JSON fields)
+        if 'keyerror' in reason.lower():
+            field_match = re.search(r"KeyError: '(\w+)'", reason, re.IGNORECASE)
+            if field_match:
+                missing_field = field_match.group(1)
+                return f"""# HEALED: Field '{missing_field}' no longer exists in response
+# Suggested fix: Check if field exists before accessing
+
+def {test_name}(client):
+    response = client.post('/api/v1/endpoint', json={{}})
+    data = response.json()
+    # Old: data['{missing_field}']
+    # New: Check first
+    assert '{missing_field}' in data or 'error' not in data  # Auto-healed"""
+        
+        # Generic assertion healing
+        if 'assert' in reason.lower():
+            return f"""# HEALED: Assertion failure detected
+# Original error: {reason[:100]}
+# Manual review recommended
+
+def {test_name}(client):
+    # Test needs manual inspection
+    # Error: {reason[:80]}
+    pass  # TODO: Fix assertion"""
         
         return None
     
@@ -624,15 +666,50 @@ def client():
         Returns:
             Confidence score between 0.0 and 1.0
         """
-        # Simple status code fixes have high confidence
-        if 'assert 201 == 200' in reason or ('assert 200' in reason and '201' in reason):
-            return 0.90  # Very high confidence for 201/200 mismatch
-        elif 'assert 200 ==' in reason or 'assert 400 ==' in reason:
-            return 0.85
+        import re
+        
+        # Extract status codes from assertion error
+        status_code_pattern = r'assert (\d{3}) == (\d{3})'
+        match = re.search(status_code_pattern, reason)
+        
+        if match:
+            actual = int(match.group(1))
+            expected = int(match.group(2))
+            
+            # Very high confidence: Simple status code changes
+            if actual in [200, 201, 204]:  # Success codes
+                if expected in [200, 201, 204]:
+                    return 0.95  # Success to success (e.g., 200→201)
+                else:
+                    return 0.85  # Error to success
+            
+            # High confidence: Error code changes
+            elif actual in [400, 401, 403, 404]:  # Client errors
+                if expected in [400, 401, 403, 404]:
+                    return 0.90  # Client error to client error
+                elif expected in [200, 201]:
+                    return 0.88  # Success to client error (API behavior change)
+                else:
+                    return 0.80
+            
+            # Medium confidence: Server errors
+            elif actual in [500, 502, 503]:
+                return 0.65  # Server errors are less predictable
+            
+            # Default for status code assertions
+            return 0.75
+        
+        # KeyError fixes have medium-high confidence
         elif 'keyerror' in reason.lower():
             return 0.70
+        
+        # Generic assertion failures
+        elif 'assert' in reason.lower():
+            return 0.60  # Lower confidence for unknown assertions
+        
+        # Very low confidence for other errors
         else:
-            return 0.60
+            return 0.50
     
     def _detect_anomalies(self, test_details, pytest_result):
         """
