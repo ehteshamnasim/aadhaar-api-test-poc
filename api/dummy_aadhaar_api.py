@@ -195,6 +195,56 @@ if TEST_MODE['traffic_replay']:
         
         return response
 
+@app.route('/api/v1/aadhaar/masked-aadhaar', methods=['GET'])
+def get_masked_aadhaar():
+    """Return masked Aadhaar number"""
+    aadhaar = request.args.get('aadhaar_number')
+    
+    if not aadhaar:
+        return jsonify({"error": "aadhaar_number parameter is required"}), 400
+    
+    if not is_valid_aadhaar(aadhaar):
+        return jsonify({"error": "Invalid Aadhaar format"}), 400
+    
+    # Mask first 8 digits
+    masked = "XXXXXXXX" + aadhaar[-4:]
+    
+    return jsonify({
+        "masked_aadhaar": masked,
+        "status": "success"
+    }), 200
+
+@app.route('/api/v1/aadhaar/face-authentication', methods=['POST'])
+def face_authentication():
+    """Face-based authentication (new feature)"""
+    data = request.get_json()
+    
+    if not data:
+        return jsonify({"error": "Request body is required"}), 400
+    
+    aadhaar = data.get('aadhaar_number')
+    face_image = data.get('face_image')
+    
+    if not aadhaar or not face_image:
+        return jsonify({"error": "aadhaar_number and face_image are required"}), 400
+    
+    if not is_valid_aadhaar(aadhaar):
+        return jsonify({"error": "Invalid Aadhaar format"}), 400
+    
+    # Simulate face matching
+    # For demo: valid Aadhaars with face_image containing "valid" will match
+    if aadhaar in VALID_AADHAARS and "valid" in face_image.lower():
+        return jsonify({
+            "status": "authenticated",
+            "confidence_score": 0.95,
+            "match": True
+        }), 200
+    else:
+        return jsonify({
+            "status": "authentication_failed",
+            "match": False
+        }), 401
+
 if __name__ == '__main__':
     print("\n" + "="*60)
     print("🚀 Starting Dummy Aadhaar API on http://localhost:5001")

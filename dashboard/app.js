@@ -47,6 +47,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     addLog('Dashboard initialized successfully', 'success');
     addLog('Waiting for automation tasks...', 'info');
+    
+    // IMPORTANT: Start SSE connection immediately
+    connectSSE();
 });
 
 // Update timestamp
@@ -467,8 +470,8 @@ function connectSSE() {
     };
 }
 
-// Initialize connection
-connectSSE();
+// DON'T call connectSSE() here - it's called in DOMContentLoaded
+// connectSSE();
 
 // Handle page visibility
 document.addEventListener('visibilitychange', function() {

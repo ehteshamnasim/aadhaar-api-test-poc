@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: UIDAI Aadhaar API
-  version: 1.1.1
+  version: 1.1
   description: Dummy Aadhaar verification APIs for POC
 
 servers:
@@ -276,3 +276,83 @@ paths:
                   error:
                     type: string
                     example: "Consent required"
+
+  /aadhaar/masked-aadhaar:
+    get:
+      summary: Get masked Aadhaar number
+      description: Returns Aadhaar number with first 8 digits masked
+      parameters:
+        - in: query
+          name: aadhaar_number
+          required: true
+          schema:
+            type: string
+            pattern: '^[0-9]{12}$'
+          example: "123456789012"
+      responses:
+        '200':
+          description: Masked Aadhaar returned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  masked_aadhaar:
+                    type: string
+                    example: "XXXXXXXX9012"
+                  status:
+                    type: string
+                    example: "success"
+        '400':
+          description: Invalid request
+
+  /aadhaar/face-authentication:
+    post:
+      summary: Face-based authentication
+      description: Authenticate using face biometric (new feature)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                aadhaar_number:
+                  type: string
+                  pattern: '^[0-9]{12}$'
+                face_image:
+                  type: string
+                  description: Base64 encoded face image
+              required:
+                - aadhaar_number
+                - face_image
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "authenticated"
+                  confidence_score:
+                    type: number
+                    example: 0.95
+                  match:
+                    type: boolean
+                    example: true
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "authentication_failed"
+                  match:
+                    type: boolean
+                    example: false
