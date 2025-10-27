@@ -1,7 +1,17 @@
 from flask import Flask, request, jsonify
 import re
+import time
+import random
 
 app = Flask(__name__)
+
+# Configuration flags for testing different scenarios
+TEST_MODE = {
+    'self_healing': False,      # Set True to test self-healing (changes status codes)
+    'error_analysis': False,    # Set True to test error analysis (requires auth)
+    'anomaly_detection': False, # Set True to test anomaly detection (adds delays/errors)
+    'traffic_replay': True      # Set True to record traffic
+}
 
 # Dummy valid Aadhaar numbers for testing
 VALID_AADHAARS = {
@@ -19,6 +29,25 @@ def is_valid_aadhaar(aadhaar):
 @app.route('/api/v1/aadhaar/verify', methods=['POST'])
 def verify_aadhaar():
     """Verify Aadhaar number"""
+    
+    # TEST SCENARIO: Error Analysis - Require authentication
+    if TEST_MODE['error_analysis']:
+        auth_token = request.headers.get('Authorization')
+        if not auth_token or auth_token != 'Bearer valid-token-123':
+            return jsonify({
+                "status": "unauthorized", 
+                "error": "Missing or invalid authentication token"
+            }), 401
+    
+    # TEST SCENARIO: Anomaly Detection - Add random delays
+    if TEST_MODE['anomaly_detection']:
+        if random.random() > 0.7:  # 30% of requests are slow
+            time.sleep(2)  # 2 second delay simulates performance issue
+        
+        # Randomly return errors to simulate high error rate
+        if random.random() > 0.85:  # 15% error rate
+            return jsonify({"error": "Database connection timeout"}), 500
+    
     data = request.get_json()
     
     if not data or 'aadhaar_number' not in data:
@@ -30,7 +59,9 @@ def verify_aadhaar():
         return jsonify({"status": "invalid", "error": "Aadhaar must be 12 digits"}), 400
     
     if aadhaar in VALID_AADHAARS:
-        return jsonify({"status": "valid", "message": "Aadhaar number is valid"}), 200
+        # TEST SCENARIO: Self-Healing - Change status code to trigger test failures
+        status_code = 201 if TEST_MODE['self_healing'] else 200
+        return jsonify({"status": "valid", "message": "Aadhaar number is valid"}), status_code
     else:
         return jsonify({"status": "invalid", "error": "Aadhaar not found in database"}), 400
 
@@ -136,6 +167,48 @@ def health():
     """Health check endpoint"""
     return jsonify({"status": "healthy"}), 200
 
+# TEST SCENARIO: Traffic Replay - Record all requests
+if TEST_MODE['traffic_replay']:
+    @app.before_request
+    def record_request_start():
+        """Record request start time"""
+        request.start_time = time.time()
+    
+    @app.after_request
+    def record_request_complete(response):
+        """Record completed request for traffic replay"""
+        if hasattr(request, 'start_time'):
+            duration_ms = (time.time() - request.start_time) * 1000
+            
+            # Send to dashboard for traffic replay visualization
+            try:
+                import requests as req
+                req.post('http://localhost:5050/api/event', json={
+                    'type': 'traffic',
+                    'method': request.method,
+                    'url': request.url,
+                    'status_code': response.status_code,
+                    'duration_ms': round(duration_ms, 2)
+                }, timeout=0.5)
+            except:
+                pass  # Dashboard might not be running, that's okay
+        
+        return response
+
 if __name__ == '__main__':
-    print("Starting Dummy Aadhaar API on http://localhost:5001")
+    print("\n" + "="*60)
+    print("🚀 Starting Dummy Aadhaar API on http://localhost:5001")
+    print("="*60)
+    print("\n📊 TEST MODES (Edit TEST_MODE dict to enable):")
+    print(f"   ✅ Self-Healing: {'ENABLED' if TEST_MODE['self_healing'] else 'DISABLED'} - Changes status codes to trigger test failures")
+    print(f"   ✅ Error Analysis: {'ENABLED' if TEST_MODE['error_analysis'] else 'DISABLED'} - Requires auth header")
+    print(f"   ✅ Anomaly Detection: {'ENABLED' if TEST_MODE['anomaly_detection'] else 'DISABLED'} - Adds delays and errors")
+    print(f"   ✅ Traffic Replay: {'ENABLED' if TEST_MODE['traffic_replay'] else 'DISABLED'} - Records all requests")
+    print("\n💡 To test each scenario:")
+    print("   1. Set the TEST_MODE flag to True")
+    print("   2. Restart this API server")
+    print("   3. Run: python main.py --spec specs/aadhaar-api.yaml")
+    print("   4. Check dashboard at http://localhost:5050")
+    print("\n" + "="*60 + "\n")
+    
     app.run(host='0.0.0.0', port=5001, debug=True)
