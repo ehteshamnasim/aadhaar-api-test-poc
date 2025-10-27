@@ -1,0 +1,44 @@
+{
+  "recording_timestamp": "2025-10-27T23:54:52.462785",
+  "total_requests": 2,
+  "recordings": [
+    {
+      "timestamp": "2025-10-27T23:54:52.462619",
+      "method": "POST",
+      "url": "http://api.example.com/api/v1/aadhaar/verify",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "***MASKED***"
+      },
+      "request_body": {
+        "aadhaar_number": "123456789012"
+      },
+      "response_status": 200,
+      "response_body": {
+        "status": "valid",
+        "message": "Aadhaar number is valid"
+      },
+      "response_time_ms": 42,
+      "session_id": null
+    },
+    {
+      "timestamp": "2025-10-27T23:54:52.462687",
+      "method": "POST",
+      "url": "http://api.example.com/api/v1/aadhaar/demographics",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "request_body": {
+        "aadhaar_number": "123456789012",
+        "consent": true
+      },
+      "response_status": 200,
+      "response_body": {
+        "name": "Eht****** Kum**",
+        "dob": "1990-01-01"
+      },
+      "response_time_ms": 68,
+      "session_id": null
+    }
+  ]
+}

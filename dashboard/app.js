@@ -4,6 +4,52 @@ let reconnectAttempts = 0;
 const MAX_RECONNECT_ATTEMPTS = 5;
 let allLogs = [];
 
+// Feature state management
+const featureState = {
+    healings: [],
+    errors: [],
+    diffs: [],
+    anomalies: [],
+    traffic: []
+};
+
+// Tab Management
+function initializeTabs() {
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    const tabPanes = document.querySelectorAll('.tab-pane');
+    
+    tabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const tabName = button.dataset.tab;
+            
+            // Update active states
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            tabPanes.forEach(pane => pane.classList.remove('active'));
+            
+            button.classList.add('active');
+            const targetPane = document.getElementById(`${tabName}-tab`);
+            if (targetPane) {
+                targetPane.classList.add('active');
+            }
+        });
+    });
+}
+
+// Initialize tabs when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    initializeTabs();
+    updateTimestamp();
+    setInterval(updateTimestamp, 1000);
+    
+    // Hide buttons initially
+    document.getElementById('coverage-btn').style.display = 'none';
+    document.getElementById('tests-btn').style.display = 'none';
+    document.getElementById('test-results-section').style.display = 'none';
+    
+    addLog('Dashboard initialized successfully', 'success');
+    addLog('Waiting for automation tasks...', 'info');
+});
+
 // Update timestamp
 function updateTimestamp() {
     const now = new Date().toLocaleTimeString('en-US', { 
@@ -379,6 +425,27 @@ function connectSSE() {
             case 'error':
                 addLog(`Error: ${data.message}`, 'error');
                 break;
+            
+            // New feature events
+            case 'healing':
+                handleHealingEvent(data);
+                break;
+            
+            case 'error_analysis':
+                handleErrorAnalysisEvent(data);
+                break;
+            
+            case 'api_diff':
+                handleAPIDiffEvent(data);
+                break;
+            
+            case 'anomaly':
+                handleAnomalyEvent(data);
+                break;
+            
+            case 'traffic':
+                handleTrafficEvent(data);
+                break;
         }
     };
 
@@ -684,3 +751,476 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+
+// ===============================================
+// NEW FEATURE EVENT HANDLERS
+// ===============================================
+
+/**
+ * Handle self-healing event
+ * Updates healing list and statistics
+ */
+function handleHealingEvent(data) {
+    featureState.healings.push(data);
+    
+    // Update badge
+    const badge = document.getElementById('healing-badge');
+    if (badge) badge.textContent = featureState.healings.length;
+    
+    // Add to healing list
+    const healingList = document.getElementById('healing-list');
+    if (healingList) {
+        // Remove empty state
+        const emptyState = healingList.querySelector('.empty-state');
+        if (emptyState) emptyState.remove();
+        
+        const healingItem = createHealingItem(data);
+        healingList.insertBefore(healingItem, healingList.firstChild);
+    }
+    
+    // Update stats
+    updateHealingStats();
+    
+    addLog(`Self-Healing: Fixed ${data.test_name} (${Math.round(data.confidence * 100)}% confidence)`, 'success');
+}
+
+/**
+ * Create healing item element
+ */
+function createHealingItem(data) {
+    const item = document.createElement('div');
+    item.className = 'healing-item';
+    
+    const confidence = Math.round((data.confidence || 0) * 100);
+    const status = confidence >= 80 ? 'Applied' : 'Needs Review';
+    const statusClass = confidence >= 80 ? '' : 'review';
+    
+    item.innerHTML = `
+        <div class="healing-item-header">
+            <span class="healing-test-name">${data.test_name || 'Unknown Test'}</span>
+            <div class="healing-confidence">
+                <div class="confidence-bar">
+                    <div class="confidence-fill" style="width: ${confidence}%"></div>
+                </div>
+                <span>${confidence}%</span>
+            </div>
+        </div>
+        <div class="healing-meta">
+            <span>⏱ ${formatTimestamp(data.timestamp || Date.now())}</span>
+            <span class="healing-status ${statusClass}">${status}</span>
+        </div>
+    `;
+    
+    // Click to show diff
+    item.addEventListener('click', () => {
+        showCodeDiff(data.diff || { before: data.old_code, after: data.new_code });
+    });
+    
+    return item;
+}
+
+/**
+ * Update healing statistics
+ */
+function updateHealingStats() {
+    const total = featureState.healings.length;
+    const successful = featureState.healings.filter(h => (h.confidence || 0) >= 0.8).length;
+    const successRate = total > 0 ? Math.round((successful / total) * 100) : 0;
+    const avgConfidence = total > 0
+        ? Math.round(featureState.healings.reduce((sum, h) => sum + (h.confidence || 0), 0) / total * 100)
+        : 0;
+    
+    const totalEl = document.getElementById('total-healings');
+    const rateEl = document.getElementById('success-rate');
+    const confEl = document.getElementById('avg-confidence');
+    
+    if (totalEl) totalEl.textContent = total;
+    if (rateEl) rateEl.textContent = `${successRate}%`;
+    if (confEl) confEl.textContent = `${avgConfidence}%`;
+}
+
+/**
+ * Show code diff in the diff viewer
+ */
+function showCodeDiff(diff) {
+    const diffViewer = document.getElementById('code-diff');
+    if (!diffViewer) return;
+    
+    const beforeLines = (diff.before || '').split('\n');
+    const afterLines = (diff.after || '').split('\n');
+    
+    let beforeHtml = '';
+    let afterHtml = '';
+    
+    const maxLines = Math.max(beforeLines.length, afterLines.length);
+    
+    for (let i = 0; i < maxLines; i++) {
+        const beforeLine = beforeLines[i] || '';
+        const afterLine = afterLines[i] || '';
+        
+        if (beforeLine !== afterLine) {
+            if (beforeLine) {
+                beforeHtml += `<div class="diff-line removed">
+                    <span class="diff-line-prefix">-</span>
+                    <span class="diff-line-content">${escapeHtml(beforeLine)}</span>
+                </div>`;
+            }
+            if (afterLine) {
+                afterHtml += `<div class="diff-line added">
+                    <span class="diff-line-prefix">+</span>
+                    <span class="diff-line-content">${escapeHtml(afterLine)}</span>
+                </div>`;
+            }
+        } else {
+            beforeHtml += `<div class="diff-line">
+                <span class="diff-line-prefix"> </span>
+                <span class="diff-line-content">${escapeHtml(beforeLine)}</span>
+            </div>`;
+            afterHtml += `<div class="diff-line">
+                <span class="diff-line-prefix"> </span>
+                <span class="diff-line-content">${escapeHtml(afterLine)}</span>
+            </div>`;
+        }
+    }
+    
+    diffViewer.innerHTML = `
+        <div class="code-diff">
+            <div class="diff-section">
+                <div class="diff-header">Before (Original)</div>
+                <div class="diff-content">${beforeHtml}</div>
+            </div>
+            <div class="diff-section">
+                <div class="diff-header">After (Healed)</div>
+                <div class="diff-content">${afterHtml}</div>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Handle error analysis event
+ */
+function handleErrorAnalysisEvent(data) {
+    featureState.errors.push(data);
+    
+    // Update badge
+    const badge = document.getElementById('error-badge');
+    if (badge) badge.textContent = featureState.errors.length;
+    
+    // Add to error list
+    const errorList = document.getElementById('error-list');
+    if (errorList) {
+        const emptyState = errorList.querySelector('.empty-state');
+        if (emptyState) emptyState.remove();
+        
+        const errorItem = createErrorItem(data);
+        errorList.insertBefore(errorItem, errorList.firstChild);
+    }
+    
+    // Update stats
+    updateErrorStats();
+    
+    addLog(`Error Analysis: ${data.test_name} - ${data.error_type}`, 'error');
+}
+
+/**
+ * Create error item element
+ */
+function createErrorItem(data) {
+    const item = document.createElement('div');
+    item.className = 'error-item';
+    
+    item.innerHTML = `
+        <div class="error-item-header">
+            <div class="error-icon">✕</div>
+            <div class="error-content">
+                <div class="error-title">${data.test_name || 'Unknown Test'}</div>
+                <div class="error-message">${data.error_type || 'Error'}: ${truncate(data.message || '', 80)}</div>
+            </div>
+        </div>
+        <div class="error-meta">
+            <span>⏱ ${formatTimestamp(data.timestamp || Date.now())}</span>
+            <span>📊 ${data.root_cause || 'Analyzing...'}</span>
+        </div>
+    `;
+    
+    // Click to show details
+    item.addEventListener('click', () => {
+        showErrorDetails(data);
+    });
+    
+    return item;
+}
+
+/**
+ * Update error statistics
+ */
+function updateErrorStats() {
+    const total = featureState.errors.length;
+    const uniqueTypes = new Set(featureState.errors.map(e => e.error_type)).size;
+    
+    const totalEl = document.getElementById('total-errors');
+    const typesEl = document.getElementById('unique-types');
+    
+    if (totalEl) totalEl.textContent = total;
+    if (typesEl) typesEl.textContent = uniqueTypes;
+}
+
+/**
+ * Show detailed error information
+ */
+function showErrorDetails(error) {
+    const detailsDiv = document.getElementById('error-details');
+    if (!detailsDiv) return;
+    
+    let html = `
+        <div class="error-details">
+            <div class="error-section">
+                <div class="error-section-title">Error Details</div>
+                <div class="error-section-content">
+                    <strong>Type:</strong> ${error.error_type || 'Unknown'}<br>
+                    <strong>Test:</strong> ${error.test_name || 'Unknown'}<br>
+                    <strong>Root Cause:</strong> ${error.root_cause || 'Analyzing...'}<br>
+                    <strong>Message:</strong> ${error.message || 'No message'}
+                </div>
+            </div>
+    `;
+    
+    if (error.request) {
+        html += `
+            <div class="error-section">
+                <div class="error-section-title">Request</div>
+                <div class="error-section-content">
+                    <strong>${error.request.method || 'GET'}</strong> ${error.request.url || ''}<br>
+                    ${error.request.headers ? `<strong>Headers:</strong> ${JSON.stringify(error.request.headers, null, 2)}` : ''}
+                </div>
+            </div>
+        `;
+    }
+    
+    if (error.response) {
+        html += `
+            <div class="error-section">
+                <div class="error-section-title">Response</div>
+                <div class="error-section-content">
+                    <strong>Status:</strong> ${error.response.status_code || 'N/A'}<br>
+                    ${error.response.body ? `<strong>Body:</strong> ${JSON.stringify(error.response.body, null, 2)}` : ''}
+                </div>
+            </div>
+        `;
+    }
+    
+    if (error.suggestions && error.suggestions.length > 0) {
+        html += `
+            <div class="error-section">
+                <div class="error-section-title">Fix Suggestions</div>
+                <ul class="fix-suggestions">
+                    ${error.suggestions.map(s => `<li class="fix-suggestion">${s}</li>`).join('')}
+                </ul>
+            </div>
+        `;
+    }
+    
+    html += '</div>';
+    detailsDiv.innerHTML = html;
+}
+
+/**
+ * Handle API diff event
+ */
+function handleAPIDiffEvent(data) {
+    if (data.changes && Array.isArray(data.changes)) {
+        featureState.diffs.push(...data.changes);
+    }
+    
+    // Update badges
+    const breaking = featureState.diffs.filter(d => d.breaking).length;
+    const nonBreaking = featureState.diffs.length - breaking;
+    
+    const breakingEl = document.getElementById('breaking-count');
+    const nonBreakingEl = document.getElementById('non-breaking-count');
+    const totalEl = document.getElementById('total-changes');
+    
+    if (breakingEl) breakingEl.textContent = breaking;
+    if (nonBreakingEl) nonBreakingEl.textContent = nonBreaking;
+    if (totalEl) totalEl.textContent = featureState.diffs.length;
+    
+    // Update diff badge
+    const badge = document.getElementById('diff-badge');
+    if (badge) badge.textContent = featureState.diffs.length;
+    
+    // Update diff list
+    const changeList = document.getElementById('change-list');
+    if (changeList) {
+        const emptyState = changeList.querySelector('.empty-state');
+        if (emptyState) emptyState.remove();
+        
+        featureState.diffs.forEach(change => {
+            const changeItem = createChangeItem(change);
+            changeList.appendChild(changeItem);
+        });
+    }
+    
+    addLog(`API Diff: ${data.changes ? data.changes.length : 0} changes detected`, 'info');
+}
+
+/**
+ * Create change item element
+ */
+function createChangeItem(change) {
+    const item = document.createElement('div');
+    item.className = `change-item ${change.breaking ? 'breaking' : 'non-breaking'}`;
+    
+    const typeClass = (change.type || 'modified').toLowerCase();
+    
+    item.innerHTML = `
+        <span class="change-type ${typeClass}">${change.type || 'Modified'}</span>
+        <div class="change-path">${change.path || 'Unknown path'}</div>
+        <div class="change-description">${change.description || 'No description'}</div>
+        ${change.recommendation ? `
+            <div class="change-recommendation">
+                <strong>Recommendation:</strong> ${change.recommendation}
+            </div>
+        ` : ''}
+    `;
+    
+    return item;
+}
+
+/**
+ * Handle anomaly event
+ */
+function handleAnomalyEvent(data) {
+    featureState.anomalies.push(data);
+    
+    // Update badge
+    const badge = document.getElementById('anomaly-badge');
+    if (badge) badge.textContent = featureState.anomalies.length;
+    
+    // Add to anomaly list
+    const anomalyList = document.getElementById('anomaly-list');
+    if (anomalyList) {
+        const emptyState = anomalyList.querySelector('.empty-state');
+        if (emptyState) emptyState.remove();
+        
+        const anomalyItem = createAnomalyItem(data);
+        anomalyList.insertBefore(anomalyItem, anomalyList.firstChild);
+    }
+    
+    addLog(`Anomaly Detected: ${data.severity || 'Unknown'} - ${data.type || 'Unknown type'}`, 'warning');
+}
+
+/**
+ * Create anomaly item element
+ */
+function createAnomalyItem(data) {
+    const item = document.createElement('div');
+    item.className = `anomaly-item ${(data.severity || 'medium').toLowerCase()}`;
+    
+    item.innerHTML = `
+        <div class="anomaly-header">
+            <span class="anomaly-title">${data.endpoint || 'Unknown endpoint'}</span>
+            <span class="anomaly-severity ${(data.severity || 'medium').toLowerCase()}">${data.severity || 'Medium'}</span>
+        </div>
+        <div class="anomaly-description">${data.description || 'Anomaly detected'}</div>
+        <div class="anomaly-values">
+            <div class="anomaly-value">
+                <span class="anomaly-value-label">Expected:</span>
+                <span class="anomaly-value-number">${data.expected || 'N/A'}</span>
+            </div>
+            <div class="anomaly-value">
+                <span class="anomaly-value-label">Actual:</span>
+                <span class="anomaly-value-number">${data.actual || 'N/A'}</span>
+            </div>
+        </div>
+        <div class="anomaly-meta" style="margin-top: 8px; font-size: 11px; color: var(--gray-600);">
+            <span>⏱ ${formatTimestamp(data.timestamp || Date.now())}</span>
+        </div>
+    `;
+    
+    return item;
+}
+
+/**
+ * Handle traffic event
+ */
+function handleTrafficEvent(data) {
+    featureState.traffic.push(data);
+    
+    // Update badge
+    const badge = document.getElementById('traffic-badge');
+    if (badge) badge.textContent = featureState.traffic.length;
+    
+    // Add to traffic list
+    const trafficList = document.getElementById('traffic-list');
+    if (trafficList) {
+        const emptyState = trafficList.querySelector('.empty-state');
+        if (emptyState) emptyState.remove();
+        
+        const trafficItem = createTrafficItem(data);
+        trafficList.insertBefore(trafficItem, trafficList.firstChild);
+        
+        // Keep only last 100 items
+        while (trafficList.children.length > 100) {
+            trafficList.removeChild(trafficList.lastChild);
+        }
+    }
+    
+    addLog(`Traffic: ${data.method || 'GET'} ${truncate(data.url || '', 50)}`, 'info');
+}
+
+/**
+ * Create traffic item element
+ */
+function createTrafficItem(data) {
+    const item = document.createElement('div');
+    item.className = 'traffic-item';
+    
+    const statusClass = (data.status_code || 200) < 400 ? 'success' : 'error';
+    const method = (data.method || 'GET').toLowerCase();
+    
+    item.innerHTML = `
+        <span class="traffic-method ${method}">${(data.method || 'GET').toUpperCase()}</span>
+        <span class="traffic-url">${data.url || 'Unknown URL'}</span>
+        <span class="traffic-status ${statusClass}">${data.status_code || '200'}</span>
+        <span class="traffic-time">${formatTimestamp(data.timestamp || Date.now())}</span>
+    `;
+    
+    return item;
+}
+
+/**
+ * Format timestamp to relative time
+ */
+function formatTimestamp(timestamp) {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const seconds = Math.floor((now - date) / 1000);
+    
+    if (seconds < 60) return `${seconds}s ago`;
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+    return date.toLocaleDateString();
+}
+
+/**
+ * Truncate string to specified length
+ */
+function truncate(str, length) {
+    if (!str || str.length <= length) return str;
+    return str.substring(0, length) + '...';
+}
+
+/**
+ * Escape HTML special characters
+ */
+function escapeHtml(text) {
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return (text || '').replace(/[&<>"']/g, m => map[m]);
+}

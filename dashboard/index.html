@@ -44,8 +44,60 @@
         </div>
     </header>
 
+    <!-- Tab Navigation -->
+    <nav class="tab-navigation">
+        <button class="tab-btn active" data-tab="overview">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+            </svg>
+            Overview
+        </button>
+        <button class="tab-btn" data-tab="healing">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+            Self-Healing
+            <span id="healing-badge" class="tab-badge">0</span>
+        </button>
+        <button class="tab-btn" data-tab="errors">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            Error Analysis
+            <span id="error-badge" class="tab-badge error">0</span>
+        </button>
+        <button class="tab-btn" data-tab="diff">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+            </svg>
+            API Diff
+            <span id="diff-badge" class="tab-badge warning">0</span>
+        </button>
+        <button class="tab-btn" data-tab="anomalies">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                <line x1="12" y1="9" x2="12" y2="13"/>
+                <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            Anomalies
+            <span id="anomaly-badge" class="tab-badge warning">0</span>
+        </button>
+        <button class="tab-btn" data-tab="traffic">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+            </svg>
+            Traffic Replay
+            <span id="traffic-badge" class="tab-badge">0</span>
+        </button>
+    </nav>
+
     <!-- Main Content Area -->
     <main class="main-content">
+        <!-- Overview Tab (Existing Content) -->
+        <div id="overview-tab" class="tab-pane active">
         <div class="content-wrapper">
             <!-- Left Panel: Metrics & Test Results -->
             <div class="left-panel">
@@ -386,6 +438,179 @@
                 </div>
             </div>
         </div>
+        </div>
+        <!-- End Overview Tab -->
+
+        <!-- Self-Healing Tab -->
+        <div id="healing-tab" class="tab-pane">
+            <div class="feature-container">
+                <div class="feature-header">
+                    <h2>Self-Healing Tests</h2>
+                    <p>Automatically repair broken tests when APIs change</p>
+                </div>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <span class="stat-number" id="total-healings">0</span>
+                        <span class="stat-label">Total Healings</span>
+                    </div>
+                    <div class="stat-card success">
+                        <span class="stat-number" id="success-rate">0%</span>
+                        <span class="stat-label">Success Rate</span>
+                    </div>
+                    <div class="stat-card info">
+                        <span class="stat-number" id="avg-confidence">0%</span>
+                        <span class="stat-label">Avg Confidence</span>
+                    </div>
+                </div>
+
+                <div class="feature-content">
+                    <div class="feature-panel">
+                        <h3>Recent Healing Operations</h3>
+                        <div id="healing-list" class="healing-list">
+                            <div class="empty-state">No healing operations yet</div>
+                        </div>
+                    </div>
+                    
+                    <div class="feature-panel">
+                        <h3>Code Diff Viewer</h3>
+                        <div id="code-diff" class="code-diff-viewer">
+                            <div class="empty-state">Select a healing operation to view diff</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- End Self-Healing Tab -->
+
+        <!-- Error Analysis Tab -->
+        <div id="errors-tab" class="tab-pane">
+            <div class="feature-container">
+                <div class="feature-header">
+                    <h2>Error Analysis</h2>
+                    <p>Deep analysis of test failures with actionable fixes</p>
+                </div>
+                
+                <div class="stats-grid">
+                    <div class="stat-card error">
+                        <span class="stat-number" id="total-errors">0</span>
+                        <span class="stat-label">Total Errors</span>
+                    </div>
+                    <div class="stat-card warning">
+                        <span class="stat-number" id="unique-types">0</span>
+                        <span class="stat-label">Unique Types</span>
+                    </div>
+                </div>
+
+                <div class="feature-content">
+                    <div class="feature-panel">
+                        <h3>Error List</h3>
+                        <div id="error-list" class="error-list">
+                            <div class="empty-state">No errors detected</div>
+                        </div>
+                    </div>
+                    
+                    <div class="feature-panel">
+                        <h3>Error Details</h3>
+                        <div id="error-details" class="error-details-viewer">
+                            <div class="empty-state">Select an error to view details</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- End Error Analysis Tab -->
+
+        <!-- API Diff Tab -->
+        <div id="diff-tab" class="tab-pane">
+            <div class="feature-container">
+                <div class="feature-header">
+                    <h2>API Specification Diff</h2>
+                    <p>Visual comparison of API changes between versions</p>
+                </div>
+                
+                <div class="stats-grid">
+                    <div class="stat-card error">
+                        <span class="stat-number" id="breaking-count">0</span>
+                        <span class="stat-label">Breaking Changes</span>
+                    </div>
+                    <div class="stat-card success">
+                        <span class="stat-number" id="non-breaking-count">0</span>
+                        <span class="stat-label">Non-Breaking</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-number" id="total-changes">0</span>
+                        <span class="stat-label">Total Changes</span>
+                    </div>
+                </div>
+
+                <div class="feature-content">
+                    <div class="feature-panel full-width">
+                        <h3>Changes Detected</h3>
+                        <div id="change-list" class="change-list">
+                            <div class="empty-state">No API changes detected</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- End API Diff Tab -->
+
+        <!-- Anomalies Tab -->
+        <div id="anomalies-tab" class="tab-pane">
+            <div class="feature-container">
+                <div class="feature-header">
+                    <h2>Anomaly Detection</h2>
+                    <p>ML-based detection of unusual API behavior</p>
+                </div>
+
+                <div class="feature-content">
+                    <div class="feature-panel full-width">
+                        <h3>Detected Anomalies</h3>
+                        <div id="anomaly-list" class="anomaly-list">
+                            <div class="empty-state">No anomalies detected</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- End Anomalies Tab -->
+
+        <!-- Traffic Replay Tab -->
+        <div id="traffic-tab" class="tab-pane">
+            <div class="feature-container">
+                <div class="feature-header">
+                    <h2>Traffic Replay</h2>
+                    <p>Capture and replay production API traffic</p>
+                </div>
+                
+                <div class="traffic-controls">
+                    <button class="action-btn primary" id="record-traffic-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <circle cx="12" cy="12" r="3" fill="currentColor"/>
+                        </svg>
+                        Start Recording
+                    </button>
+                    <button class="action-btn secondary" id="replay-traffic-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polygon points="5 3 19 12 5 21 5 3"/>
+                        </svg>
+                        Replay Traffic
+                    </button>
+                </div>
+
+                <div class="feature-content">
+                    <div class="feature-panel full-width">
+                        <h3>Recorded Traffic</h3>
+                        <div id="traffic-list" class="traffic-list">
+                            <div class="empty-state">No traffic recorded</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- End Traffic Replay Tab -->
     </main>
 
     <script src="app.js"></script>
