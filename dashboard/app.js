@@ -9,8 +9,7 @@ const featureState = {
     healings: [],
     errors: [],
     diffs: [],
-    anomalies: [],
-    traffic: []
+    anomalies: []
 };
 
 // Tab Management
@@ -441,10 +440,6 @@ function connectSSE() {
             
             case 'anomaly':
                 handleAnomalyEvent(data);
-                break;
-            
-            case 'traffic':
-                handleTrafficEvent(data);
                 break;
         }
     };
@@ -1136,54 +1131,6 @@ function createAnomalyItem(data) {
         <div class="anomaly-meta" style="margin-top: 8px; font-size: 11px; color: var(--gray-600);">
             <span>⏱ ${formatTimestamp(data.timestamp || Date.now())}</span>
         </div>
-    `;
-    
-    return item;
-}
-
-/**
- * Handle traffic event
- */
-function handleTrafficEvent(data) {
-    featureState.traffic.push(data);
-    
-    // Update badge
-    const badge = document.getElementById('traffic-badge');
-    if (badge) badge.textContent = featureState.traffic.length;
-    
-    // Add to traffic list
-    const trafficList = document.getElementById('traffic-list');
-    if (trafficList) {
-        const emptyState = trafficList.querySelector('.empty-state');
-        if (emptyState) emptyState.remove();
-        
-        const trafficItem = createTrafficItem(data);
-        trafficList.insertBefore(trafficItem, trafficList.firstChild);
-        
-        // Keep only last 100 items
-        while (trafficList.children.length > 100) {
-            trafficList.removeChild(trafficList.lastChild);
-        }
-    }
-    
-    addLog(`Traffic: ${data.method || 'GET'} ${truncate(data.url || '', 50)}`, 'info');
-}
-
-/**
- * Create traffic item element
- */
-function createTrafficItem(data) {
-    const item = document.createElement('div');
-    item.className = 'traffic-item';
-    
-    const statusClass = (data.status_code || 200) < 400 ? 'success' : 'error';
-    const method = (data.method || 'GET').toLowerCase();
-    
-    item.innerHTML = `
-        <span class="traffic-method ${method}">${(data.method || 'GET').toUpperCase()}</span>
-        <span class="traffic-url">${data.url || 'Unknown URL'}</span>
-        <span class="traffic-status ${statusClass}">${data.status_code || '200'}</span>
-        <span class="traffic-time">${formatTimestamp(data.timestamp || Date.now())}</span>
     `;
     
     return item;

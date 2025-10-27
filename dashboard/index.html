@@ -85,19 +85,15 @@
             Anomalies
             <span id="anomaly-badge" class="tab-badge warning">0</span>
         </button>
-        <button class="tab-btn" data-tab="traffic">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-            </svg>
-            Traffic Replay
-            <span id="traffic-badge" class="tab-badge">0</span>
-        </button>
     </nav>
 
     <!-- Main Content Area -->
     <main class="main-content">
         <!-- Overview Tab (Existing Content) -->
         <div id="overview-tab" class="tab-pane active">
+        <div class="tab-description">
+            <strong>Overview:</strong> Real-time visualization of the AI-powered test automation pipeline. Monitor API parsing, test generation, validation, execution, and deployment stages. Track test coverage, success rates, and CI/CD integration status.
+        </div>
         <div class="content-wrapper">
             <!-- Left Panel: Metrics & Test Results -->
             <div class="left-panel">
@@ -443,6 +439,9 @@
 
         <!-- Self-Healing Tab -->
         <div id="healing-tab" class="tab-pane">
+            <div class="tab-description">
+                <strong>Self-Healing:</strong> AI-powered automatic test repair system. When tests fail due to API changes, the system analyzes failure patterns and automatically generates corrected test code with confidence scores. View healing attempts, success rates, and code diffs for each auto-repaired test.
+            </div>
             <div class="feature-container">
                 <div class="feature-header">
                     <h2>Self-Healing Tests</h2>
@@ -485,6 +484,9 @@
 
         <!-- Error Analysis Tab -->
         <div id="errors-tab" class="tab-pane">
+            <div class="tab-description">
+                <strong>Error Analysis:</strong> Intelligent error diagnostics with root cause analysis. For each test failure, the system identifies error types, analyzes root causes, and provides actionable fix suggestions. Includes request/response details and recommended remediation steps.
+            </div>
             <div class="feature-container">
                 <div class="feature-header">
                     <h2>Error Analysis</h2>
@@ -523,6 +525,9 @@
 
         <!-- API Diff Tab -->
         <div id="diff-tab" class="tab-pane">
+            <div class="tab-description">
+                <strong>API Diff:</strong> Git-based API specification change detection. Automatically compares current API spec with previous commit to identify added, removed, or modified endpoints. Flags breaking changes and provides test update recommendations for each change.
+            </div>
             <div class="feature-container">
                 <div class="feature-header">
                     <h2>API Specification Diff</h2>
@@ -558,6 +563,9 @@
 
         <!-- Anomalies Tab -->
         <div id="anomalies-tab" class="tab-pane">
+            <div class="tab-description">
+                <strong>Anomaly Detection:</strong> Runtime monitoring and anomaly identification during test execution. Detects high error rates, slow test performance, complete system failures, and other unusual patterns. Each anomaly includes severity level, expected vs. actual behavior, and suggested actions.
+            </div>
             <div class="feature-container">
                 <div class="feature-header">
                     <h2>Anomaly Detection</h2>
@@ -575,42 +583,6 @@
             </div>
         </div>
         <!-- End Anomalies Tab -->
-
-        <!-- Traffic Replay Tab -->
-        <div id="traffic-tab" class="tab-pane">
-            <div class="feature-container">
-                <div class="feature-header">
-                    <h2>Traffic Replay</h2>
-                    <p>Capture and replay production API traffic</p>
-                </div>
-                
-                <div class="traffic-controls">
-                    <button class="action-btn primary" id="record-traffic-btn">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="10"/>
-                            <circle cx="12" cy="12" r="3" fill="currentColor"/>
-                        </svg>
-                        Start Recording
-                    </button>
-                    <button class="action-btn secondary" id="replay-traffic-btn">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polygon points="5 3 19 12 5 21 5 3"/>
-                        </svg>
-                        Replay Traffic
-                    </button>
-                </div>
-
-                <div class="feature-content">
-                    <div class="feature-panel full-width">
-                        <h3>Recorded Traffic</h3>
-                        <div id="traffic-list" class="traffic-list">
-                            <div class="empty-state">No traffic recorded</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <!-- End Traffic Replay Tab -->
     </main>
 
     <script src="app.js"></script>

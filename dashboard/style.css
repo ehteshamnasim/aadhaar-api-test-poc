@@ -110,6 +110,24 @@ body {
     background: var(--warning);
 }
 
+/* Tab Description */
+.tab-description {
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    border-left: 4px solid var(--info);
+    padding: 16px 20px;
+    margin: 24px 24px 20px 24px;
+    border-radius: 8px;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--gray-700);
+    box-shadow: var(--shadow-sm);
+}
+
+.tab-description strong {
+    color: var(--info);
+    font-weight: 600;
+}
+
 /* Tab Panes */
 .tab-pane {
     display: none;

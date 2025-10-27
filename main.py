@@ -21,8 +21,64 @@ from contract_tester import ContractTester
 from validator import CodeValidator
 
 import requests
+import re
 
-DASHBOARD_URL = "http://localhost:8080"
+DASHBOARD_URL = "http://localhost:5050"
+
+# Dashboard integration functions
+def send_healing_event(test_name, confidence, old_code, new_code):
+    """Send self-healing event to dashboard"""
+    healing_data = {
+        'type': 'healing',
+        'test_name': test_name,
+        'confidence': confidence,
+        'old_code': old_code,
+        'new_code': new_code,
+        'diff': {'before': old_code, 'after': new_code}
+    }
+    try:
+        requests.post(f"{DASHBOARD_URL}/api/event", json=healing_data, timeout=2)
+    except:
+        pass
+
+def send_error_analysis_event(test_name, error_type, message, root_cause, suggestions):
+    """Send error analysis event to dashboard"""
+    error_data = {
+        'type': 'error_analysis',
+        'test_name': test_name,
+        'error_type': error_type,
+        'message': message,
+        'root_cause': root_cause,
+        'suggestions': suggestions
+    }
+    try:
+        requests.post(f"{DASHBOARD_URL}/api/event", json=error_data, timeout=2)
+    except:
+        pass
+
+def send_api_diff_event(changes):
+    """Send API diff event to dashboard"""
+    diff_data = {'type': 'api_diff', 'changes': changes}
+    try:
+        requests.post(f"{DASHBOARD_URL}/api/event", json=diff_data, timeout=2)
+    except:
+        pass
+
+def send_anomaly_event(endpoint, severity, anomaly_type, description, expected, actual):
+    """Send anomaly event to dashboard"""
+    anomaly_data = {
+        'type': 'anomaly',
+        'endpoint': endpoint,
+        'severity': severity,
+        'anomaly_type': anomaly_type,
+        'description': description,
+        'expected': expected,
+        'actual': actual
+    }
+    try:
+        requests.post(f"{DASHBOARD_URL}/api/event", json=anomaly_data, timeout=2)
+    except:
+        pass
 
 
 def send_event(event_type: str, data: dict):
@@ -73,6 +129,129 @@ class POCOrchestrator:
                 return version
             version += 1
     
+    def detect_spec_changes(self):
+        """
+        Detects changes in API specification by comparing with previous commit
+        """
+        try:
+            # Check if we're in a git repository
+            result = subprocess.run(['git', 'rev-parse', '--git-dir'], 
+                                  capture_output=True, text=True)
+            if result.returncode != 0:
+                print("   ⚠ Not a git repository, skipping API diff")
+                return
+            
+            # Get previous version of spec file
+            result = subprocess.run(
+                ['git', 'show', f'HEAD:{self.spec_path}'],
+                capture_output=True, text=True
+            )
+            
+            if result.returncode != 0:
+                print("   ⚠ No previous spec version found")
+                return
+            
+            prev_spec = result.stdout
+            
+            # Read current spec
+            with open(self.spec_path, 'r') as f:
+                current_spec = f.read()
+            
+            # Simple comparison of endpoints
+            changes = self._compare_specs(prev_spec, current_spec)
+            
+            if changes:
+                print(f"   ✓ Detected {len(changes)} API changes")
+                send_api_diff_event(changes)
+            else:
+                print("   ✓ No API changes detected")
+                
+        except Exception as e:
+            print(f"   ⚠ API diff detection error: {e}")
+    
+    def _compare_specs(self, prev_spec, current_spec):
+        """
+        Compares two API specs and identifies changes
+        
+        Args:
+            prev_spec: Previous specification content
+            current_spec: Current specification content
+            
+        Returns:
+            List of change dictionaries
+        """
+        changes = []
+        
+        # Extract endpoint paths using regex
+        prev_paths = set(re.findall(r'^\s+(/[^:]+):', prev_spec, re.MULTILINE))
+        current_paths = set(re.findall(r'^\s+(/[^:]+):', current_spec, re.MULTILINE))
+        
+        # New endpoints
+        for path in current_paths - prev_paths:
+            changes.append({
+                'type': 'added',
+                'path': path,
+                'description': f'New endpoint added: {path}',
+                'breaking': False,
+                'recommendation': 'Add test coverage for new endpoint'
+            })
+        
+        # Removed endpoints
+        for path in prev_paths - current_paths:
+            changes.append({
+                'type': 'removed',
+                'path': path,
+                'description': f'Endpoint removed: {path}',
+                'breaking': True,
+                'recommendation': 'Remove or update tests for removed endpoint'
+            })
+        
+        # Check for schema changes in common paths
+        for path in prev_paths & current_paths:
+            # Simple check: if path content differs significantly
+            prev_section = self._extract_path_section(prev_spec, path)
+            current_section = self._extract_path_section(current_spec, path)
+            
+            if prev_section != current_section:
+                changes.append({
+                    'type': 'modified',
+                    'path': path,
+                    'description': f'Endpoint modified: {path}',
+                    'breaking': False,
+                    'recommendation': 'Review and update test assertions'
+                })
+        
+        return changes
+    
+    def _extract_path_section(self, spec, path):
+        """
+        Extracts specification section for a given path
+        
+        Args:
+            spec: Specification content
+            path: API path
+            
+        Returns:
+            Section content or empty string
+        """
+        lines = spec.split('\n')
+        in_section = False
+        section = []
+        indent_level = 0
+        
+        for line in lines:
+            if path in line and line.strip().startswith(path):
+                in_section = True
+                indent_level = len(line) - len(line.lstrip())
+                section.append(line)
+            elif in_section:
+                current_indent = len(line) - len(line.lstrip())
+                if line.strip() and current_indent <= indent_level:
+                    break
+                section.append(line)
+        
+        return '\n'.join(section)
+    
     def run(self):
         """Execute workflow"""
         print("\n" + "="*70)
@@ -88,6 +267,11 @@ class POCOrchestrator:
             self._log("Analyzing OpenAPI specification")
             parsed_spec = self.parse_spec()
             time.sleep(1.5)
+            
+            # API Diff Detection
+            self._log("Checking for API specification changes")
+            self.detect_spec_changes()
+            time.sleep(1)
             
             # Generate
             self._log("AI test generation in progress")
@@ -317,6 +501,216 @@ def client():
         
         print(f"   ✓ Test suite prepared: {filename}")
     
+    def _analyze_error_root_cause(self, reason, test_name):
+        """
+        Analyzes error message to identify root cause
+        
+        Args:
+            reason: Error message/reason
+            test_name: Name of failing test
+            
+        Returns:
+            Human-readable root cause description
+        """
+        reason_lower = reason.lower()
+        
+        if '200 ==' in reason or '201 ==' in reason:
+            return "Expected successful response but received error status code"
+        elif 'assert 400' in reason or 'assert 401' in reason:
+            return "Expected error response but received success status"
+        elif 'connection' in reason_lower or 'refused' in reason_lower:
+            return "Network connection issue - API server may not be running"
+        elif 'timeout' in reason_lower:
+            return "Request timeout - API response too slow"
+        elif 'keyerror' in reason_lower or 'missing' in reason_lower:
+            return "Missing expected field in API response"
+        elif 'json' in reason_lower:
+            return "Invalid JSON response format"
+        else:
+            return f"Test assertion failed: {reason[:100]}"
+    
+    def _generate_fix_suggestions(self, reason, error_type):
+        """
+        Generates actionable fix suggestions based on error
+        
+        Args:
+            reason: Error message
+            error_type: Type of error
+            
+        Returns:
+            List of fix suggestion strings
+        """
+        suggestions = []
+        reason_lower = reason.lower()
+        
+        if '200 ==' in reason or '201 ==' in reason:
+            suggestions.append("Check if API endpoint is returning expected status code")
+            suggestions.append("Verify request payload matches API requirements")
+            suggestions.append("Check API server logs for error details")
+        elif 'assert 400' in reason or 'assert 401' in reason:
+            suggestions.append("Update test assertion to match actual API behavior")
+            suggestions.append("Verify API specification for correct status codes")
+        elif 'connection' in reason_lower:
+            suggestions.append("Ensure API server is running (python api/dummy_aadhaar_api.py)")
+            suggestions.append("Check if port is already in use")
+        elif 'keyerror' in reason_lower:
+            suggestions.append("Update test to match actual API response structure")
+            suggestions.append("Check if API specification is outdated")
+        else:
+            suggestions.append("Review test logic and API specification")
+            suggestions.append("Run test individually for more details: pytest -v -k test_name")
+        
+        return suggestions
+    
+    def _can_auto_heal(self, reason):
+        """
+        Determines if error is auto-healable
+        
+        Args:
+            reason: Error message
+            
+        Returns:
+            Boolean indicating if healing can be attempted
+        """
+        # Can heal simple assertion errors and missing fields
+        healable_patterns = [
+            'assert 200 ==',
+            'assert 201 ==',
+            'assert 400 ==',
+            'keyerror',
+            'missing'
+        ]
+        reason_lower = reason.lower()
+        return any(pattern in reason_lower for pattern in healable_patterns)
+    
+    def _attempt_healing(self, test_name, reason):
+        """
+        Attempts to generate healed test code
+        
+        Args:
+            test_name: Name of failing test
+            reason: Failure reason
+            
+        Returns:
+            Healed code snippet or None
+        """
+        # Simple healing logic for demonstration
+        if 'assert 200 ==' in reason and '401' in reason:
+            return f"""def {test_name}(client):
+    # Healed: Added authentication header
+    response = client.post('/api/v1/aadhaar/generate-otp',
+        headers={{'Authorization': 'Bearer test-token'}})
+    assert response.status_code == 200"""
+        
+        elif 'assert 400 ==' in reason and '200' in reason:
+            return f"""def {test_name}(client):
+    # Healed: Updated assertion to match actual response
+    response = client.post('/api/v1/aadhaar/generate-otp')
+    assert response.status_code == 200  # Changed from 400"""
+        
+        return None
+    
+    def _calculate_confidence(self, reason):
+        """
+        Calculates confidence score for healing
+        
+        Args:
+            reason: Error message
+            
+        Returns:
+            Confidence score between 0.0 and 1.0
+        """
+        # Simple status code fixes have high confidence
+        if 'assert 200 ==' in reason or 'assert 400 ==' in reason:
+            return 0.85
+        elif 'keyerror' in reason.lower():
+            return 0.70
+        else:
+            return 0.60
+    
+    def _detect_anomalies(self, test_details, pytest_result):
+        """
+        Detects anomalies in test execution
+        
+        Args:
+            test_details: List of test result dictionaries
+            pytest_result: subprocess.CompletedProcess from pytest run
+        """
+        anomalies_found = False
+        
+        # Anomaly 1: High failure rate
+        if self.unique_test_count > 0:
+            failure_rate = (self.failed_tests / self.unique_test_count) * 100
+            
+            if failure_rate >= 50:
+                send_anomaly_event(
+                    endpoint='Overall Test Suite',
+                    severity='critical',
+                    anomaly_type='error_rate',
+                    description=f'High test failure rate detected: {failure_rate:.1f}%',
+                    expected='<20% failure rate',
+                    actual=f'{failure_rate:.1f}% ({self.failed_tests}/{self.unique_test_count} tests failed)'
+                )
+                print(f"   ⚠ Anomaly: High failure rate ({failure_rate:.1f}%)")
+                anomalies_found = True
+            elif failure_rate >= 30:
+                send_anomaly_event(
+                    endpoint='Overall Test Suite',
+                    severity='high',
+                    anomaly_type='error_rate',
+                    description=f'Elevated test failure rate: {failure_rate:.1f}%',
+                    expected='<20% failure rate',
+                    actual=f'{failure_rate:.1f}% ({self.failed_tests}/{self.unique_test_count} tests failed)'
+                )
+                print(f"   ⚠ Anomaly: Elevated failure rate ({failure_rate:.1f}%)")
+                anomalies_found = True
+        
+        # Anomaly 2: Slow test execution (parse from pytest output)
+        try:
+            output = pytest_result.stdout + pytest_result.stderr
+            
+            # Look for timing information in pytest output
+            # Format: "test_name PASSED [100%] in 5.23s"
+            for line in output.split('\n'):
+                if 'in ' in line and 's' in line:
+                    match = re.search(r'in ([\d.]+)s', line)
+                    if match:
+                        duration = float(match.group(1))
+                        
+                        if duration > 5.0:  # Tests taking longer than 5 seconds
+                            test_name = 'Unknown'
+                            if '::test_' in line:
+                                test_name = line.split('::')[1].split()[0]
+                            
+                            send_anomaly_event(
+                                endpoint=test_name,
+                                severity='medium',
+                                anomaly_type='response_time',
+                                description=f'Slow test execution detected: {duration:.2f}s',
+                                expected='<2s per test',
+                                actual=f'{duration:.2f}s'
+                            )
+                            print(f"   ⚠ Anomaly: Slow test {test_name} ({duration:.2f}s)")
+                            anomalies_found = True
+        except Exception as e:
+            pass  # Timing analysis is best-effort
+        
+        # Anomaly 3: All tests failing (potential system issue)
+        if self.unique_test_count > 0 and self.passed_tests == 0:
+            send_anomaly_event(
+                endpoint='Test Environment',
+                severity='critical',
+                anomaly_type='system_failure',
+                description='All tests failing - possible environment or API issue',
+                expected='Some tests passing',
+                actual='0 tests passed'
+            )
+            print(f"   ⚠ Anomaly: Complete test failure - check environment")
+            anomalies_found = True
+        
+        if not anomalies_found:
+            print("   ✓ No anomalies detected")
+    
     def run_tests_fixed(self):
         """Execute tests - Using Flask test client (no API server needed)"""
         
@@ -421,8 +815,39 @@ def client():
                         
                         details.append({'name': name, 'passed': False, 'reason': reason})
                         print(f"   ✗ {name}: {reason}")
+                        
+                        # Send error analysis for failed test
+                        error_type = "AssertionError" if "assert" in reason.lower() else "TestFailure"
+                        
+                        # Analyze root cause
+                        root_cause = self._analyze_error_root_cause(reason, name)
+                        suggestions = self._generate_fix_suggestions(reason, error_type)
+                        
+                        send_error_analysis_event(
+                            test_name=name,
+                            error_type=error_type,
+                            message=reason,
+                            root_cause=root_cause,
+                            suggestions=suggestions
+                        )
+                        
+                        # Attempt self-healing for certain error types
+                        if self._can_auto_heal(reason):
+                            healed_code = self._attempt_healing(name, reason)
+                            if healed_code:
+                                confidence = self._calculate_confidence(reason)
+                                send_healing_event(
+                                    test_name=name,
+                                    confidence=confidence,
+                                    old_code=f"# Original test failed: {reason}",
+                                    new_code=healed_code
+                                )
+                                print(f"   🔧 Auto-heal attempted for {name} (confidence: {confidence:.0%})")
             
             print(f"\n   Results: {self.passed_tests}/{self.unique_test_count} passed")
+            
+            # Detect anomalies in test execution
+            self._detect_anomalies(details, result)
             
             send_event('execute', {
                 'passed': self.passed_tests,

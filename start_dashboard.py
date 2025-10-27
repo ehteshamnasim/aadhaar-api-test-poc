@@ -16,7 +16,7 @@ if __name__ == '__main__':
     print("\n" + "="*70)
     print("📊 AI Test Automation Dashboard")
     print("="*70)
-    print("\n🌐 Dashboard running at: http://localhost:8080")
+    print("\n🌐 Dashboard running at: http://localhost:5050")
     print("   Keep this running to see live updates from POC runs")
     print("\n💡 Events received via HTTP POST to /api/event")
     print("   SSE stream available at /events")
@@ -25,6 +25,6 @@ if __name__ == '__main__':
     print("\n⏹️  Press Ctrl+C to stop\n")
     
     try:
-        app.run(host='0.0.0.0', port=8080, debug=False, threaded=True)
+        app.run(host='0.0.0.0', port=5050, debug=False, threaded=True)
     except KeyboardInterrupt:
         print("\n👋 Dashboard stopped\n")
