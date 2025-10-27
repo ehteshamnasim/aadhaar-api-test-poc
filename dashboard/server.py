@@ -13,7 +13,9 @@ app = Flask(__name__, static_folder='.')
 CORS(app)  # Enable CORS
 
 # Global queue and history for events
-event_queue = queue.Queue()
+# Use a list of queues instead of single queue for broadcasting
+client_queues = []
+client_queues_lock = threading.Lock()
 event_history = []
 MAX_HISTORY = 100
 
@@ -28,17 +30,30 @@ def broadcast_event(event_type: str, data: dict):
         **data
     }
     
-    # Add to queue
-    event_queue.put(event)
-    
     # Add to history (thread-safe)
     with history_lock:
         event_history.append(event)
         if len(event_history) > MAX_HISTORY:
             event_history.pop(0)
     
+    # Broadcast to all connected clients
+    with client_queues_lock:
+        dead_queues = []
+        for client_queue in client_queues:
+            try:
+                client_queue.put(event, block=False)
+            except:
+                dead_queues.append(client_queue)
+        
+        # Remove dead queues
+        for dead_queue in dead_queues:
+            try:
+                client_queues.remove(dead_queue)
+            except:
+                pass
+    
     # Log for debugging
-    print(f"[Dashboard] 📡 Broadcast: {event_type} - {data}")
+    print(f"[Dashboard] 📡 Broadcast: {event_type} to {len(client_queues)} clients - {data}")
     return True
 
 @app.route('/')
@@ -189,6 +204,16 @@ def view_tests():
 def stream():
     """Server-Sent Events stream"""
     def event_stream():
+        # Create a queue for this client
+        client_queue = queue.Queue()
+        
+        # Register this client
+        with client_queues_lock:
+            client_queues.append(client_queue)
+            client_count = len(client_queues)
+        
+        print(f"[Dashboard] 🔗 Client connected to SSE (total clients: {client_count})")
+        
         # Send connection message
         connection_msg = {
             'type': 'connected',
@@ -196,7 +221,6 @@ def stream():
             'timestamp': time.time()
         }
         yield f"data: {json.dumps(connection_msg)}\n\n"
-        print("[Dashboard] 🔗 Client connected to SSE")
         
         # Send recent history
         with history_lock:
@@ -205,18 +229,27 @@ def stream():
         for event in recent:
             yield f"data: {json.dumps(event)}\n\n"
         
-        # Stream new events
+        # Stream new events from this client's queue
         last_heartbeat = time.time()
-        while True:
-            try:
-                event = event_queue.get(timeout=1)
-                yield f"data: {json.dumps(event)}\n\n"
-                last_heartbeat = time.time()
-            except queue.Empty:
-                # Heartbeat every 15 seconds
-                if time.time() - last_heartbeat > 15:
-                    yield f": heartbeat\n\n"
+        try:
+            while True:
+                try:
+                    event = client_queue.get(timeout=1)
+                    yield f"data: {json.dumps(event)}\n\n"
                     last_heartbeat = time.time()
+                except queue.Empty:
+                    # Heartbeat every 15 seconds
+                    if time.time() - last_heartbeat > 15:
+                        yield f": heartbeat\n\n"
+                        last_heartbeat = time.time()
+        finally:
+            # Clean up when client disconnects
+            with client_queues_lock:
+                try:
+                    client_queues.remove(client_queue)
+                    print(f"[Dashboard] 🔌 Client disconnected (remaining: {len(client_queues)})")
+                except:
+                    pass
     
     return Response(
         event_stream(),
@@ -234,9 +267,12 @@ def health():
     with history_lock:
         history_count = len(event_history)
     
+    with client_queues_lock:
+        client_count = len(client_queues)
+    
     return {
         'status': 'ok',
-        'queue_size': event_queue.qsize(),
+        'clients_connected': client_count,
         'history_size': history_count,
         'timestamp': time.time()
     }, 200
