@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard Debug Test</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1a1a1a; color: #00ff00; }
+        .event { padding: 10px; margin: 5px 0; background: #2a2a2a; border-left: 3px solid #00ff00; }
+        .error { border-left-color: #ff0000; color: #ff0000; }
+        h2 { color: #00ff00; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Dashboard SSE Debug Test</h1>
+    <h2>Connection Status: <span id="status">Connecting...</span></h2>
+    <h2>Events Received: <span id="count">0</span></h2>
+    <button onclick="clearEvents()">Clear Events</button>
+    <button onclick="sendTestEvent()">Send Test Event</button>
+    <hr>
+    <div id="events"></div>
+
+    <script>
+        let eventCount = 0;
+        const eventsDiv = document.getElementById('events');
+        const statusSpan = document.getElementById('status');
+        const countSpan = document.getElementById('count');
+
+        // Connect to SSE
+        const eventSource = new EventSource('http://localhost:5050/events');
+
+        eventSource.onopen = function() {
+            statusSpan.textContent = 'Connected ✓';
+            statusSpan.style.color = '#00ff00';
+            addEvent('SSE connection opened', 'success');
+        };
+
+        eventSource.onmessage = function(event) {
+            eventCount++;
+            countSpan.textContent = eventCount;
+            
+            try {
+                const data = JSON.parse(event.data);
+                addEvent(`Event received: ${data.type}`, 'success');
+                addEvent(JSON.stringify(data, null, 2), 'data');
+            } catch (e) {
+                addEvent(`Raw data: ${event.data}`, 'data');
+            }
+        };
+
+        eventSource.onerror = function(error) {
+            statusSpan.textContent = 'Error ✗';
+            statusSpan.style.color = '#ff0000';
+            addEvent('SSE connection error', 'error');
+            console.error('SSE Error:', error);
+        };
+
+        function addEvent(message, type) {
+            const div = document.createElement('div');
+            div.className = 'event' + (type === 'error' ? ' error' : '');
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            eventsDiv.insertBefore(div, eventsDiv.firstChild);
+            
+            // Keep only last 50 events
+            while (eventsDiv.children.length > 50) {
+                eventsDiv.removeChild(eventsDiv.lastChild);
+            }
+        }
+
+        function clearEvents() {
+            eventsDiv.innerHTML = '';
+            eventCount = 0;
+            countSpan.textContent = '0';
+        }
+
+        function sendTestEvent() {
+            fetch('http://localhost:5050/api/event', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    type: 'execute',
+                    passed: 3,
+                    failed: 1,
+                    total: 4,
+                    details: [
+                        {name: 'test_1', passed: true, reason: 'OK'},
+                        {name: 'test_2', passed: true, reason: 'OK'},
+                        {name: 'test_3', passed: false, reason: 'Failed'},
+                        {name: 'test_4', passed: true, reason: 'OK'}
+                    ]
+                })
+            })
+            .then(r => addEvent('Test event sent to dashboard', 'success'))
+            .catch(e => addEvent('Failed to send test event: ' + e, 'error'));
+        }
+
+        // Auto-send test event on load
+        setTimeout(sendTestEvent, 1000);
+    </script>
+</body>
+</html>
