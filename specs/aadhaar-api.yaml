@@ -1,8 +1,8 @@
 openapi: 3.0.0
 info:
   title: UIDAI Aadhaar API
-  version: 1.1
-  description: Dummy Aadhaar verification APIs for POC
+  version: 1.2
+  description: Dummy Aadhaar verification APIs for POC - Testing Self-Healing
 
 servers:
   - url: http://localhost:5001/api/v1
