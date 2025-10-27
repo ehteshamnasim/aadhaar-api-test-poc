@@ -7,7 +7,7 @@ app = Flask(__name__)
 
 # Configuration flags for testing different scenarios
 TEST_MODE = {
-    'self_healing': False,      # Set True to test self-healing (changes status codes)
+    'self_healing': True,       # Set True to test self-healing (changes status codes)
     'error_analysis': False,    # Set True to test error analysis (requires auth)
     'anomaly_detection': False, # Set True to test anomaly detection (adds delays/errors)
     'traffic_replay': True      # Set True to record traffic
