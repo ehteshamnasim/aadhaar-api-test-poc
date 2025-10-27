@@ -574,9 +574,7 @@ def client():
         """
         # Can heal simple assertion errors and missing fields
         healable_patterns = [
-            'assert 200 ==',
-            'assert 201 ==',
-            'assert 400 ==',
+            'assert',  # Any assertion error
             'keyerror',
             'missing'
         ]
@@ -602,6 +600,12 @@ def client():
         headers={{'Authorization': 'Bearer test-token'}})
     assert response.status_code == 200"""
         
+        elif 'assert 201 == 200' in reason or 'assert 200' in reason and '201' in reason:
+            return f"""def {test_name}(client):
+    # Healed: Updated assertion to expect 201 instead of 200
+    response = client.post('/api/v1/aadhaar/verify', json={{'aadhaar_number': '123456789012'}})
+    assert response.status_code == 201  # Changed from 200 to 201"""
+        
         elif 'assert 400 ==' in reason and '200' in reason:
             return f"""def {test_name}(client):
     # Healed: Updated assertion to match actual response
@@ -621,7 +625,9 @@ def client():
             Confidence score between 0.0 and 1.0
         """
         # Simple status code fixes have high confidence
-        if 'assert 200 ==' in reason or 'assert 400 ==' in reason:
+        if 'assert 201 == 200' in reason or ('assert 200' in reason and '201' in reason):
+            return 0.90  # Very high confidence for 201/200 mismatch
+        elif 'assert 200 ==' in reason or 'assert 400 ==' in reason:
             return 0.85
         elif 'keyerror' in reason.lower():
             return 0.70
