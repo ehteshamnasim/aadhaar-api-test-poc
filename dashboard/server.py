@@ -776,12 +776,12 @@ if __name__ == '__main__':
     print("\n" + "="*70)
     print("📊 AI Test Automation Dashboard")
     print("="*70)
-    print("\n🌐 Dashboard: http://localhost:8080")
-    print("📡 SSE Stream: http://localhost:8080/events")
-    print("📨 Event API: POST http://localhost:8080/api/event")
-    print("💚 Health: http://localhost:8080/api/health")
+    print("\n🌐 Dashboard: http://localhost:5050")
+    print("📡 SSE Stream: http://localhost:5050/events")
+    print("📨 Event API: POST http://localhost:5050/api/event")
+    print("💚 Health: http://localhost:5050/api/health")
     print("\n⏹️  Press Ctrl+C to stop\n")
     
-    app.run(host='0.0.0.0', port=8080, debug=False, threaded=True)
+    app.run(host='0.0.0.0', port=5050, debug=False, threaded=True)
 
 
