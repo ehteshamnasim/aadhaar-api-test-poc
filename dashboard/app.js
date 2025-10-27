@@ -236,20 +236,27 @@ function resetDashboard() {
 
 // Handle SSE events
 function connectSSE() {
+    console.log('🔌 Attempting to connect SSE...');
+    
     if (eventSource) {
+        console.log('Closing existing SSE connection');
         eventSource.close();
     }
     
     eventSource = new EventSource('/events');
+    console.log('✓ SSE EventSource created');
     
     eventSource.onopen = function() {
         reconnectAttempts = 0;
+        console.log('✅ SSE connection opened successfully');
         updateStatus('Connected - Ready');
         addLog('Connected to automation server', 'success');
     };
 
     eventSource.onmessage = function(event) {
+        console.log('📨 SSE message received:', event.data);
         const data = JSON.parse(event.data);
+        console.log('📦 Parsed data:', data);
         updateTimestamp();
         
         switch(data.type) {
@@ -351,6 +358,7 @@ function connectSSE() {
                 break;
                 
             case 'execute':
+                console.log('🧪 Execute event received:', data);
                 document.getElementById('tests-passed').textContent = data.passed || 0;
                 document.getElementById('tests-failed').textContent = data.failed || 0;
                 document.getElementById('tests-total').textContent = data.total || 0;
@@ -360,6 +368,7 @@ function connectSSE() {
                 
                 // Show and populate test results
                 if (data.details && data.details.length > 0) {
+                    console.log(`📋 Populating ${data.details.length} test details`);
                     document.getElementById('test-results-section').style.display = 'block';
                     const detailsList = document.getElementById('test-details-list');
                     detailsList.innerHTML = '';
@@ -373,6 +382,9 @@ function connectSSE() {
                         `;
                         detailsList.appendChild(testDiv);
                     });
+                    console.log('✅ Test details populated');
+                } else {
+                    console.warn('⚠️ No test details found in execute event');
                 }
                 break;
                 
@@ -387,11 +399,13 @@ function connectSSE() {
                 break;
                 
             case 'contract':
+                console.log('📜 Contract event received:', data);
                 document.getElementById('contracts-tested').textContent = data.total || 0;
                 document.getElementById('contracts-passed').textContent = data.passed || 0;
                 document.getElementById('contracts-failed').textContent = data.failed || 0;
                 
                 if (data.status === 'completed') {
+                    console.log('✅ Contract testing completed');
                     addLog(`Contract testing complete: ${data.passed}/${data.total} passed`, 
                            data.failed === 0 ? 'success' : 'warning');
                 }

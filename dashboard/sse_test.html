@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SSE Real-Time Test</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 20px;
+        }
+        .status { font-size: 24px; margin: 20px 0; }
+        .event { 
+            background: #2a2a2a;
+            padding: 10px;
+            margin: 5px 0;
+            border-left: 3px solid #00ff00;
+        }
+        .error { border-left-color: #ff0000; color: #ff0000; }
+        button {
+            background: #00ff00;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover { background: #00cc00; }
+    </style>
+</head>
+<body>
+    <h1>📡 SSE Real-Time Connection Test</h1>
+    <div class="status" id="status">Status: <span id="statusText">Initializing...</span></div>
+    
+    <div>
+        <button onclick="sendTestEvent()">Send Test Event</button>
+        <button onclick="sendExecuteEvent()">Send Execute Event</button>
+        <button onclick="sendContractEvent()">Send Contract Event</button>
+        <button onclick="clearLogs()">Clear Logs</button>
+    </div>
+    
+    <h2>Events Received: <span id="count">0</span></h2>
+    <div id="events"></div>
+
+    <script>
+        let eventCount = 0;
+        const eventsDiv = document.getElementById('events');
+        const statusText = document.getElementById('statusText');
+        const countSpan = document.getElementById('count');
+        
+        // Connect to SSE
+        console.log('🔌 Creating EventSource...');
+        const eventSource = new EventSource('http://localhost:5050/events');
+
+        eventSource.onopen = function() {
+            console.log('✅ SSE connection opened');
+            statusText.textContent = 'Connected ✅';
+            statusText.style.color = '#00ff00';
+            addEvent('✅ SSE connection opened', 'success');
+        };
+
+        eventSource.onmessage = function(event) {
+            console.log('📨 Message received:', event.data);
+            eventCount++;
+            countSpan.textContent = eventCount;
+            
+            try {
+                const data = JSON.parse(event.data);
+                addEvent(`📦 Event type: ${data.type}`, 'success');
+                addEvent(`   Data: ${JSON.stringify(data, null, 2)}`, 'data');
+                
+                // Check specific event types
+                if (data.type === 'execute') {
+                    addEvent(`   ✅ EXECUTE: ${data.passed}/${data.total} tests passed`, 'success');
+                    if (data.details) {
+                        addEvent(`   📋 ${data.details.length} test details included`, 'success');
+                    }
+                } else if (data.type === 'contract') {
+                    addEvent(`   ✅ CONTRACT: ${data.passed}/${data.total} contracts passed`, 'success');
+                }
+            } catch (e) {
+                addEvent(`⚠️ Parse error: ${e.message}`, 'error');
+                addEvent(`   Raw: ${event.data}`, 'data');
+            }
+        };
+
+        eventSource.onerror = function(error) {
+            console.error('❌ SSE error:', error);
+            statusText.textContent = 'Disconnected ❌';
+            statusText.style.color = '#ff0000';
+            addEvent('❌ SSE connection error', 'error');
+        };
+
+        function addEvent(message, type) {
+            const div = document.createElement('div');
+            div.className = 'event' + (type === 'error' ? ' error' : '');
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            eventsDiv.insertBefore(div, eventsDiv.firstChild);
+            
+            // Keep only last 30 events
+            while (eventsDiv.children.length > 30) {
+                eventsDiv.removeChild(eventsDiv.lastChild);
+            }
+        }
+
+        function clearLogs() {
+            eventsDiv.innerHTML = '';
+            eventCount = 0;
+            countSpan.textContent = '0';
+        }
+
+        function sendTestEvent() {
+            fetch('http://localhost:5050/api/event', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    type: 'status',
+                    message: 'Test event from SSE test page'
+                })
+            })
+            .then(r => {
+                console.log('✅ Test event sent');
+                addEvent('✅ Test event sent to dashboard', 'success');
+            })
+            .catch(e => {
+                console.error('❌ Failed to send:', e);
+                addEvent('❌ Failed to send test event: ' + e, 'error');
+            });
+        }
+
+        function sendExecuteEvent() {
+            fetch('http://localhost:5050/api/event', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    type: 'execute',
+                    passed: 12,
+                    failed: 4,
+                    total: 16,
+                    details: [
+                        {name: 'test_generate_otp', passed: true, reason: 'All assertions passed'},
+                        {name: 'test_verify_otp', passed: true, reason: 'All assertions passed'},
+                        {name: 'test_demographics', passed: false, reason: 'assert 400 == 401'},
+                        {name: 'test_ekyc', passed: true, reason: 'All assertions passed'},
+                        {name: 'test_face_auth', passed: false, reason: 'Connection timeout'},
+                    ]
+                })
+            })
+            .then(r => {
+                console.log('✅ Execute event sent');
+                addEvent('✅ Execute event sent (12/16 tests passed)', 'success');
+            })
+            .catch(e => {
+                console.error('❌ Failed to send:', e);
+                addEvent('❌ Failed to send execute event: ' + e, 'error');
+            });
+        }
+
+        function sendContractEvent() {
+            fetch('http://localhost:5050/api/event', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    type: 'contract',
+                    total: 7,
+                    passed: 6,
+                    failed: 1,
+                    status: 'completed'
+                })
+            })
+            .then(r => {
+                console.log('✅ Contract event sent');
+                addEvent('✅ Contract event sent (6/7 passed)', 'success');
+            })
+            .catch(e => {
+                console.error('❌ Failed to send:', e);
+                addEvent('❌ Failed to send contract event: ' + e, 'error');
+            });
+        }
+
+        // Auto-send test event on load
+        setTimeout(() => {
+            addEvent('🚀 Sending initial test event...', 'success');
+            sendTestEvent();
+        }, 2000);
+    </script>
+</body>
+</html>
