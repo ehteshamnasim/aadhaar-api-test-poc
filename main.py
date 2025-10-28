@@ -110,6 +110,7 @@ class POCOrchestrator:
         self.passed_tests = 0
         self.failed_tests = 0
         self.actual_coverage = 0
+        self.healed_tests = []
         
         Path(output_dir).mkdir(exist_ok=True)
         Path('api').mkdir(exist_ok=True)
@@ -583,78 +584,118 @@ def client():
     
     def _attempt_healing(self, test_name, reason):
         """
-        Attempts to generate healed test code
+        Attempts to generate healed assertion
         
         Args:
             test_name: Name of failing test
             reason: Failure reason
             
         Returns:
-            Healed code snippet or None
+            Dict with healing info or None
         """
         import re
+        from datetime import datetime
         
         # Extract status code assertion failures
-        # Matches patterns like: "assert 200 == 400", "assert 201 == 200", etc.
         status_code_pattern = r'assert (\d{3}) == (\d{3})'
         match = re.search(status_code_pattern, reason)
         
         if match:
-            actual_code = match.group(1)  # The value that was received
-            expected_code = match.group(2)  # The value that was expected
+            actual_code = match.group(1)
+            expected_code = match.group(2)
             
             # Determine the reason for the change
             if actual_code == '401':
-                change_reason = f"API now requires authentication (401), was expecting {expected_code}"
+                change_reason = f"API now requires authentication"
             elif actual_code == '403':
-                change_reason = f"Access forbidden (403), was expecting {expected_code}"
+                change_reason = f"Access forbidden"
             elif actual_code == '400':
-                change_reason = f"Bad request (400), was expecting {expected_code}"
+                change_reason = f"Bad request validation"
             elif actual_code == '201':
-                change_reason = f"Resource created (201), was expecting {expected_code}"
+                change_reason = f"Resource created successfully"
             elif actual_code == '404':
-                change_reason = f"Resource not found (404), was expecting {expected_code}"
+                change_reason = f"Resource not found"
             elif actual_code == '500':
-                change_reason = f"Server error (500), was expecting {expected_code}"
+                change_reason = f"Server error"
             else:
                 change_reason = f"Status code changed from {expected_code} to {actual_code}"
             
-            return f"""# HEALED: {change_reason}
-# Original assertion: assert response.status_code == {expected_code}
-# New assertion: assert response.status_code == {actual_code}
-
-def {test_name}(client):
-    # Test logic here...
-    response = client.post('/api/v1/endpoint', json={{}})
-    assert response.status_code == {actual_code}  # Auto-healed: changed from {expected_code}"""
+            return {
+                'original_assertion': f"assert response.status_code == {expected_code}",
+                'healed_assertion': f"assert response.status_code == {actual_code}",
+                'reason': change_reason,
+                'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'actual_code': actual_code,
+                'expected_code': expected_code
+            }
         
-        # Handle KeyError (missing JSON fields)
+        # Handle KeyError
         if 'keyerror' in reason.lower():
             field_match = re.search(r"KeyError: '(\w+)'", reason, re.IGNORECASE)
             if field_match:
                 missing_field = field_match.group(1)
-                return f"""# HEALED: Field '{missing_field}' no longer exists in response
-# Suggested fix: Check if field exists before accessing
-
-def {test_name}(client):
-    response = client.post('/api/v1/endpoint', json={{}})
-    data = response.json()
-    # Old: data['{missing_field}']
-    # New: Check first
-    assert '{missing_field}' in data or 'error' not in data  # Auto-healed"""
-        
-        # Generic assertion healing
-        if 'assert' in reason.lower():
-            return f"""# HEALED: Assertion failure detected
-# Original error: {reason[:100]}
-# Manual review recommended
-
-def {test_name}(client):
-    # Test needs manual inspection
-    # Error: {reason[:80]}
-    pass  # TODO: Fix assertion"""
+                return {
+                    'original_assertion': f"data['{missing_field}']",
+                    'healed_assertion': f"assert '{missing_field}' in data",
+                    'reason': f"Field '{missing_field}' no longer in response",
+                    'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                }
         
         return None
+    
+    def _apply_healing_to_file(self, test_file, test_name, reason, healing_info):
+        """
+        Apply healing to actual test file
+        
+        Returns:
+            bool: True if successfully applied
+        """
+        import re
+        
+        try:
+            # Read test file
+            with open(test_file, 'r') as f:
+                content = f.read()
+            
+            # Find the test function
+            test_pattern = rf'(def {test_name}\([^)]+\):.*?)(?=\ndef |\Z)'
+            match = re.search(test_pattern, content, re.DOTALL)
+            
+            if not match:
+                return False
+            
+            original_function = match.group(0)
+            
+            # Replace the assertion
+            if healing_info['original_assertion'] in original_function:
+                # Calculate confidence
+                confidence = self._calculate_confidence(reason)
+                
+                # Build healing comment
+                healing_comment = f"""
+    # 🔧 AUTO-HEALED on {healing_info['timestamp']}
+    # Original: {healing_info['original_assertion']}
+    # Reason: {healing_info['reason']}
+    # Confidence: {confidence:.0%}"""
+                
+                # Replace assertion
+                healed_function = original_function.replace(
+                    healing_info['original_assertion'],
+                    healing_comment + '\n    ' + healing_info['healed_assertion'] + '  # ✅ HEALED'
+                )
+                
+                # Update content
+                new_content = content.replace(original_function, healed_function)
+                
+                # Write back
+                with open(test_file, 'w') as f:
+                    f.write(new_content)
+                
+                return True
+        except Exception as e:
+            print(f"   ⚠️  Healing file write error: {e}")
+        
+        return False
     
     def _calculate_confidence(self, reason):
         """
@@ -794,6 +835,30 @@ def {test_name}(client):
         if not anomalies_found:
             print("   ✓ No anomalies detected")
     
+    def _execute_pytest(self, test_file_path):
+        """
+        Execute pytest on the given test file and return the result.
+        
+        Args:
+            test_file_path: Absolute path to the test file
+            
+        Returns:
+            subprocess.CompletedProcess: The result of pytest execution
+        """
+        abs_test_path = os.path.abspath(test_file_path)
+        project_root = os.path.dirname(os.path.abspath(__file__))
+        
+        result = subprocess.run(
+            ['pytest', abs_test_path, '-v', '--tb=line', '-p', 'no:cacheprovider'],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            cwd=project_root,
+            env=dict(os.environ, PYTHONDONTWRITEBYTECODE='1')
+        )
+        
+        return result
+    
     def run_tests_fixed(self):
         """Execute tests - Using Flask test client (no API server needed)"""
         
@@ -807,20 +872,8 @@ def {test_name}(client):
         
         # Run pytest with explicit path
         try:
-            # CRITICAL: Use absolute path and proper working directory
-            abs_test_path = os.path.abspath(self.test_file_path)
-            project_root = os.path.dirname(os.path.abspath(__file__))
-            
-            print(f"   Running: pytest {abs_test_path}")
-            
-            result = subprocess.run(
-                ['pytest', abs_test_path, '-v', '--tb=line', '-p', 'no:cacheprovider'],
-                capture_output=True,
-                text=True,
-                timeout=60,
-                cwd=project_root,
-                env=dict(os.environ, PYTHONDONTWRITEBYTECODE='1')
-            )
+            # Execute pytest using helper method
+            result = self._execute_pytest(self.test_file_path)
             
             output = result.stdout + '\n' + result.stderr
             
@@ -916,18 +969,82 @@ def {test_name}(client):
                         
                         # Attempt self-healing for certain error types
                         if self._can_auto_heal(reason):
-                            healed_code = self._attempt_healing(name, reason)
-                            if healed_code:
+                            healing_info = self._attempt_healing(name, reason)
+                            if healing_info:
                                 confidence = self._calculate_confidence(reason)
+                                
+                                # Apply healing to file
+                                healed = self._apply_healing_to_file(self.test_file_path, name, reason, healing_info)
+                                
                                 send_healing_event(
                                     test_name=name,
                                     confidence=confidence,
-                                    old_code=f"# Original test failed: {reason}",
-                                    new_code=healed_code
+                                    old_code=healing_info['original_assertion'],
+                                    new_code=healing_info['healed_assertion']
                                 )
-                                print(f"   🔧 Auto-heal attempted for {name} (confidence: {confidence:.0%})")
+                                
+                                if healed:
+                                    print(f"   🔧 Auto-healed {name} (confidence: {confidence:.0%})")
+                                    self.healed_tests.append(name)
             
             print(f"\n   Results: {self.passed_tests}/{self.unique_test_count} passed")
+            
+            # Re-run tests if any were healed
+            if self.healed_tests:
+                print(f"\n🔁 Re-running tests after healing {len(self.healed_tests)} test(s)...")
+                
+                # Store before-healing results
+                before_passed = self.passed_tests
+                before_failed = self.failed_tests
+                
+                # Reset counters for re-run
+                self.passed_tests = 0
+                self.failed_tests = 0
+                
+                # Re-run pytest
+                result_after = self._execute_pytest(self.test_file_path)
+                
+                # Parse re-run results
+                details_after = []
+                lines = result_after.stdout.split('\n')
+                for i, line in enumerate(lines):
+                    # Only process test result lines (with PASSED or FAILED status)
+                    if '::test_' in line and (' PASSED' in line or ' FAILED' in line):
+                        name = line.split('::')[1].split()[0] if '::' in line else 'unknown'
+                        
+                        if ' PASSED' in line:
+                            self.passed_tests += 1
+                            details_after.append({'name': name, 'passed': True})
+                        elif ' FAILED' in line:
+                            self.failed_tests += 1
+                            reason = "Still failing after healing"
+                            for j in range(i+1, min(len(lines), i+50)):
+                                if '.py:' in lines[j] and 'assert' in lines[j]:
+                                    try:
+                                        reason = lines[j].split('assert')[1].strip()[:120]
+                                    except:
+                                        pass
+                                    break
+                            details_after.append({'name': name, 'passed': False, 'reason': reason})
+                
+                # Calculate healing effectiveness
+                tests_fixed = self.passed_tests - before_passed
+                
+                print(f"\n📊 Healing Summary:")
+                print(f"   Before: {before_passed} passed, {before_failed} failed")
+                print(f"   After:  {self.passed_tests} passed, {self.failed_tests} failed")
+                print(f"   Fixed:  {tests_fixed} test(s) healed successfully")
+                
+                # Send healing summary event
+                send_event('healing_summary', {
+                    'healed_count': len(self.healed_tests),
+                    'before_passed': before_passed,
+                    'before_failed': before_failed,
+                    'after_passed': self.passed_tests,
+                    'after_failed': self.failed_tests,
+                    'tests_fixed': tests_fixed,
+                    'effectiveness': (tests_fixed / len(self.healed_tests) * 100) if self.healed_tests else 0
+                })
             
             # Detect anomalies in test execution
             self._detect_anomalies(details, result)

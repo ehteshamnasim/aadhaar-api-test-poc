@@ -447,6 +447,10 @@ function connectSSE() {
                 handleHealingEvent(data);
                 break;
             
+            case 'healing_summary':
+                handleHealingSummaryEvent(data);
+                break;
+            
             case 'error_analysis':
                 handleErrorAnalysisEvent(data);
                 break;
@@ -907,6 +911,84 @@ function showCodeDiff(diff) {
             </div>
         </div>
     `;
+}
+
+/**
+ * Handle healing summary event (after test re-run)
+ */
+function handleHealingSummaryEvent(data) {
+    const {
+        healed_count,
+        before_passed,
+        before_failed,
+        after_passed,
+        after_failed,
+        tests_fixed,
+        effectiveness
+    } = data;
+    
+    // Create summary banner
+    const testResultsSection = document.querySelector('.test-results');
+    if (testResultsSection) {
+        // Remove existing summary banner if present
+        const existingBanner = testResultsSection.querySelector('.healing-summary-banner');
+        if (existingBanner) existingBanner.remove();
+        
+        const banner = document.createElement('div');
+        banner.className = 'healing-summary-banner';
+        banner.style.cssText = `
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        `;
+        
+        banner.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h3 style="margin: 0 0 10px 0; font-size: 18px;">
+                        🔧 Self-Healing Complete
+                    </h3>
+                    <p style="margin: 0; opacity: 0.9;">
+                        Healed ${healed_count} test(s), ${tests_fixed} now passing
+                    </p>
+                </div>
+                <div style="text-align: right;">
+                    <div style="font-size: 32px; font-weight: bold; margin-bottom: 5px;">
+                        ${Math.round(effectiveness)}%
+                    </div>
+                    <div style="opacity: 0.9; font-size: 12px;">Effectiveness</div>
+                </div>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.2);">
+                <div>
+                    <div style="opacity: 0.8; font-size: 12px;">Before Healing</div>
+                    <div style="font-size: 16px; margin-top: 5px;">
+                        ✓ ${before_passed} passed · ✗ ${before_failed} failed
+                    </div>
+                </div>
+                <div>
+                    <div style="opacity: 0.8; font-size: 12px;">After Healing</div>
+                    <div style="font-size: 16px; margin-top: 5px;">
+                        ✓ ${after_passed} passed · ✗ ${after_failed} failed
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        testResultsSection.insertBefore(banner, testResultsSection.firstChild);
+    }
+    
+    // Update healing stats
+    updateHealingStats();
+    
+    // Log the summary
+    addLog(
+        `Healing Summary: ${tests_fixed}/${healed_count} tests fixed (${Math.round(effectiveness)}% effective)`,
+        'success'
+    );
 }
 
 /**
