@@ -87,6 +87,7 @@ paths:
                     type: integer
                     example: 60
 
+
   /aadhaar/test-new-endpoint:
     get:
       summary: Test new endpoint for regeneration
@@ -437,12 +438,10 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: "unhealthy"
-                  error:
-                    type: string
-                    example: "Service temporarily unavailable"
-
+                $ref: '#/components/schemas/Error'
+        '502':
+          description: Bad gateway
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'

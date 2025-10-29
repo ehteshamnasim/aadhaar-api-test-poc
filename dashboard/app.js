@@ -1197,11 +1197,15 @@ function handleTestRegenerationEvent(data) {
         unchanged_endpoints
     } = data;
     
-    // Create regeneration banner in test results section
-    const testResultsSection = document.querySelector('.test-results');
-    if (testResultsSection) {
+    // Create regeneration banner in the Test Regeneration tab
+    const healingList = document.getElementById('healing-list');
+    if (healingList) {
+        // Remove empty state
+        const emptyState = healingList.querySelector('.empty-state');
+        if (emptyState) emptyState.remove();
+        
         // Remove existing banner if present
-        const existingBanner = testResultsSection.querySelector('.regeneration-banner');
+        const existingBanner = healingList.querySelector('.regeneration-banner');
         if (existingBanner) existingBanner.remove();
         
         const banner = document.createElement('div');
@@ -1263,7 +1267,13 @@ function handleTestRegenerationEvent(data) {
             ` : ''}
         `;
         
-        testResultsSection.insertBefore(banner, testResultsSection.firstChild);
+        healingList.insertBefore(banner, healingList.firstChild);
+        
+        // Update stats in Test Regeneration tab
+        document.getElementById('total-healings').textContent = changed_endpoints ? changed_endpoints.length : 0;
+        const preservedPercent = preserved_count > 0 ? Math.round((preserved_count / total_count) * 100) : 0;
+        document.getElementById('success-rate').textContent = preservedPercent + '%';
+        document.getElementById('avg-confidence').textContent = regenerated_count;
     }
     
     // Log the regeneration
