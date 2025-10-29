@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: UIDAI Aadhaar API
-  version: 1.12
+  version: 1.12.4
   description: Dummy Aadhaar verification APIs for POC - Testing Change Detection v2
 
 servers:
@@ -391,4 +391,37 @@ paths:
                     example: "authentication_failed"
                   match:
                     type: boolean
-                    example: false# Testing git commit trigger - Tue Oct 28 02:03:16 IST 2025
+                    example: false
+
+  /aadhaar/health-check:
+    get:
+      summary: Health check endpoint
+      description: Check if the Aadhaar service is healthy
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
+                  timestamp:
+                    type: string
+                    example: "2025-10-29T18:30:00Z"
+        '503':
+          description: Service unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "unhealthy"
+                  error:
+                    type: string
+                    example: "Service temporarily unavailable"
+
