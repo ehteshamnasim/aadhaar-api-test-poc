@@ -1,17 +1,17 @@
 openapi: 3.0.0
 info:
   title: UIDAI Aadhaar API
-  version: 1.12.4
+  version: 1.12.8
   description: Dummy Aadhaar verification APIs for POC - Testing Change Detection v2
 
 servers:
-  - url: http://localhost:5001/api/v1
+  - url: http://localhost:5001/api/v2
 
 paths:
   /aadhaar/verify:
     post:
-      summary: Verify Aadhaar number
-      description: Validates if Aadhaar number is valid (12 digits)
+      summary: Verify Aadhaar number - NOW WITH CAPTCHA
+      description: Validates if Aadhaar number is valid (12 digits) and requires captcha
       requestBody:
         required: true
         content:
@@ -23,8 +23,13 @@ paths:
                   type: string
                   pattern: '^[0-9]{12}$'
                   example: "123456789012"
+                captcha:
+                  type: string
+                  description: "Captcha code for verification"
+                  example: "ABC123"
               required:
                 - aadhaar_number
+                - captcha
       responses:
         '200':
           description: Valid Aadhaar
@@ -65,6 +70,22 @@ paths:
                   error:
                     type: string
                     example: "Authentication required"
+        '429':
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "rate_limited"
+                  error:
+                    type: string
+                    example: "Too many verification attempts"
+                  retry_after:
+                    type: integer
+                    example: 60
 
   /aadhaar/test-new-endpoint:
     get:

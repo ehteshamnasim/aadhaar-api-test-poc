@@ -149,13 +149,14 @@ class POCOrchestrator:
             if changes:
                 self.spec_changes = changes  # Store for selective regeneration
                 
-                # Extract changed endpoints
+                # Extract changed endpoints (exclude server URL changes)
                 for change in changes:
-                    if 'path' in change:
+                    if 'path' in change and change.get('type') != 'server_url_changed':
                         self.changed_endpoints.add(change['path'])
                 
                 print(f"   ✓ Detected {len(changes)} API changes in {spec_basename}")
-                print(f"   → {len(self.changed_endpoints)} endpoints affected")
+                if self.changed_endpoints:
+                    print(f"   → {len(self.changed_endpoints)} endpoints affected")
                 send_api_diff_event(changes)
                 
                 # Update baseline after successful detection
@@ -187,6 +188,22 @@ class POCOrchestrator:
             # Parse YAML specs
             prev_data = yaml.safe_load(prev_spec)
             current_data = yaml.safe_load(current_spec)
+            
+            # Check server URL changes
+            prev_servers = prev_data.get('servers', [])
+            current_servers = current_data.get('servers', [])
+            
+            prev_urls = [s.get('url', '') for s in prev_servers if isinstance(s, dict)]
+            current_urls = [s.get('url', '') for s in current_servers if isinstance(s, dict)]
+            
+            if prev_urls != current_urls:
+                changes.append({
+                    'type': 'server_url_changed',
+                    'path': 'servers',
+                    'description': f'Server URL changed: {prev_urls} → {current_urls}',
+                    'breaking': False,
+                    'recommendation': 'Update base URL in tests'
+                })
             
             # Get paths (endpoints)
             prev_paths = prev_data.get('paths', {})

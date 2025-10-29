@@ -6,8 +6,15 @@ on:
     paths:
       - 'tests/**'
       - 'api/**'
+      - 'specs/**/*.yaml'
+      - 'specs/**/*.yml'
   pull_request:
     branches: [ main ]
+    paths:
+      - 'tests/**'
+      - 'api/**'
+      - 'specs/**/*.yaml'
+      - 'specs/**/*.yml'
 
 jobs:
   test:
@@ -34,6 +41,32 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
+    
+    - name: Check for spec changes and regenerate tests
+      id: regenerate
+      run: |
+        echo "🔍 Checking for API specification changes..."
+        
+        # Run main.py to detect changes and regenerate tests if needed
+        python main.py specs/aadhaar-api.yaml || true
+        
+        # Check if new test file was generated
+        if git diff --name-only | grep -q "tests/"; then
+          echo "✅ Tests regenerated due to spec changes"
+          echo "regenerated=true" >> $GITHUB_OUTPUT
+        else
+          echo "ℹ️  No test regeneration needed"
+          echo "regenerated=false" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Commit regenerated tests
+      if: steps.regenerate.outputs.regenerated == 'true'
+      run: |
+        git config --global user.name "GitHub Actions Bot"
+        git config --global user.email "actions@github.com"
+        git add tests/ .spec_version_*
+        git commit -m "🤖 Auto-regenerate tests for spec changes [skip ci]"
+        git push
     
     - name: Start Dummy API
       run: |
