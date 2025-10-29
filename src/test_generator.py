@@ -75,11 +75,23 @@ Requirements:
 - Use Flask test client: client = app.test_client()
 - Make requests using full paths including base path: response = client.post('{base_path}/path', json={{...}})
 - Include tests for success cases (2xx responses)
-- Include tests for error cases (4xx responses)
+- Include tests for error cases (4xx responses) - understand the difference:
+  * 400 Bad Request: Invalid format, wrong data type, pattern mismatch
+  * 403 Forbidden: Missing consent field or consent=False
+  * 401 Unauthorized: Missing authentication or invalid credentials
 - Test with valid and invalid payloads
+- For success tests, provide ALL required fields including 'consent: true' if needed
 - Add clear test names and docstrings
 - Use pytest fixtures for test client
 - Follow PEP 8 style guide
+- Validate response structure, not just status codes
+
+CRITICAL RULES FOR STATUS CODES:
+1. If endpoint requires 'consent' field: missing consent or consent=False → expect 403
+2. If endpoint requires 'consent' field and testing success: ALWAYS include "consent": true
+3. Missing required fields (non-consent) → expect 400
+4. Invalid field format/pattern → expect 400
+5. Success cases → expect 200 or 201 based on spec
 
 IMPORTANT: All request paths must start with '{base_path}' (base path from API spec)
 
@@ -94,9 +106,19 @@ API Endpoints to test:
             
             if ep['request_body'].get('properties'):
                 prompt += f"Request body fields: {list(ep['request_body']['properties'].keys())}\n"
-                prompt += f"Required fields: {ep['request_body'].get('required_fields', [])}\n"
+                required_fields = ep['request_body'].get('required_fields', [])
+                prompt += f"Required fields: {required_fields}\n"
+                
+                # Highlight consent field if present
+                if 'consent' in ep['request_body'].get('properties', {}):
+                    prompt += f"⚠️  CONSENT FIELD: This endpoint has 'consent' field - missing/false consent returns 403, not 400!\n"
             
             prompt += f"Expected responses: {list(ep['responses'].keys())}\n"
+            
+            # Add response details for better test generation
+            for status_code, response_info in ep['responses'].items():
+                prompt += f"  - {status_code}: {response_info.get('description', 'N/A')}\n"
+            
             prompt += "\n"
         
         prompt += f"""
@@ -104,11 +126,15 @@ Generate ONLY the Python code for pytest tests. Include:
 1. Import statements (pytest, from api.dummy_aadhaar_api import app)
 2. Pytest fixture for test client
 3. Test functions using client.post(), client.get(), etc.
-4. Assert statements for status codes and response structure
+4. Assert statements for status codes AND response structure
+5. For each endpoint, create at least:
+   - 1 success test with ALL required fields (including consent: true if needed)
+   - 1 test for missing required field (expect 400)
+   - 1 test for consent validation if endpoint has consent field (expect 403)
 
 IMPORTANT: ALL test requests MUST include the base path '{base_path}'
 
-Example structure:
+Example structure for endpoint with consent:
 ```python
 import pytest
 from api.dummy_aadhaar_api import app
@@ -117,9 +143,29 @@ from api.dummy_aadhaar_api import app
 def client():
     return app.test_client()
 
-def test_example(client):
-    response = client.post('{base_path}/aadhaar/verify', json={{"aadhaar_number": "123456789012"}})
-    assert response.status_code == 201
+def test_demographics_success(client):
+    # Success case - include ALL required fields
+    response = client.post('{base_path}/aadhaar/demographics', json={{
+        "aadhaar_number": "123456789012",
+        "consent": true  # MUST include consent for success
+    }})
+    assert response.status_code == 200
+    data = response.get_json()
+    assert 'name' in data
+
+def test_demographics_missing_aadhaar(client):
+    # Missing non-consent field → 400
+    response = client.post('{base_path}/aadhaar/demographics', json={{
+        "consent": true
+    }})
+    assert response.status_code == 400
+
+def test_demographics_no_consent(client):
+    # Missing consent field → 403
+    response = client.post('{base_path}/aadhaar/demographics', json={{
+        "aadhaar_number": "123456789012"
+    }})
+    assert response.status_code == 403
 ```
 
 Do not include explanations, just the code. Start directly with imports.
