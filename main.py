@@ -86,10 +86,10 @@ class POCOrchestrator:
     def __init__(self, spec_path: str, output_dir: str = None):
         self.spec_path = spec_path
         
-        # If no output_dir specified, use same folder as spec file
+        # If no output_dir specified, use 'tests' subfolder in same directory as spec file
         if output_dir is None:
             spec_dir = os.path.dirname(spec_path) or '.'
-            output_dir = spec_dir
+            output_dir = os.path.join(spec_dir, 'tests')
         
         self.output_dir = output_dir
         self.test_file_path = None
@@ -104,7 +104,7 @@ class POCOrchestrator:
         self.spec_changes = []  # Track detected spec changes
         self.changed_endpoints = set()  # Track which endpoints changed
         
-        Path(output_dir).mkdir(exist_ok=True)
+        Path(output_dir).mkdir(parents=True, exist_ok=True)
         Path('api').mkdir(exist_ok=True)
     
     def _calculate_spec_hash(self):
