@@ -1,4 +1,5 @@
 import requests
+import time
 from typing import Dict, List, Tuple
 
 class ContractTester:
