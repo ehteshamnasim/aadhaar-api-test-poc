@@ -5,13 +5,13 @@ info:
   description: Dummy Aadhaar verification APIs for POC - Testing Change Detection v2
 
 servers:
-  - url: http://localhost:5001/api/v2
+  - url: http://localhost:5001/api/v1
 
 paths:
-  /aadhaar/verify-cache:
+  /aadhaar/verify:
     post:
-      summary: Verify Aadhaar number - NOW WITH CAPTCHA
-      description: Validates if Aadhaar number is valid (12 digits) and requires captcha
+      summary: Verify Aadhaar number
+      description: Validates if Aadhaar number is valid (12 digits)
       requestBody:
         required: true
         content:
@@ -23,21 +23,8 @@ paths:
                   type: string
                   pattern: '^[0-9]{12}$'
                   example: "123456789012"
-                captcha:
-                  type: string
-                  description: "Captcha code for verification (updated v2)"
-                  example: "ABC123"
-                device_id:
-                  type: string
-                  description: "Device identifier for security tracking"
-                  example: "DEVICE123"
-                session_token:
-                  type: string
-                  description: "User session token"
-                  example: "TOKEN123"
               required:
                 - aadhaar_number
-                - captcha
       responses:
         '201':
           description: Valid Aadhaar
@@ -78,47 +65,6 @@ paths:
                   error:
                     type: string
                     example: "Missing authentication token"
-        '403':
-          description: Forbidden - Invalid captcha
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: "forbidden"
-                  error:
-                    type: string
-                    example: "Authentication required"
-
-                    
-
-
-
-
-  /aadhaar/test-new-endpoint:
-    get:
-      summary: Test new endpoint for regeneration
-      description: This endpoint tests selective regeneration
-      parameters:
-        - name: test_id
-          in: query
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                  test_id:
-                    type: string
 
   /aadhaar/demographics:
     post:
@@ -171,16 +117,7 @@ paths:
                 properties:
                   error:
                     type: string
-        '403':
-          description: Consent not provided
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-                    example: "Consent required"
+
 
   /aadhaar/otp/generate:
     post:
@@ -424,7 +361,7 @@ paths:
                     type: boolean
                     example: false
 
-  /aadhaar/health-check:
+  /health:
     get:
       summary: Health check endpoint
       description: Check if the Aadhaar service is healthy
@@ -439,24 +376,3 @@ paths:
                   status:
                     type: string
                     example: "healthy"
-                  timestamp:
-                    type: string
-                    example: "2025-10-29T18:30:00Z"
-        '503':
-          description: Service unavailable
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '502':
-          description: Bad gateway
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '504':
-          description: Gateway timeout
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'

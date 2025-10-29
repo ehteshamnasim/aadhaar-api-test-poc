@@ -163,8 +163,16 @@ def ekyc_auth():
         return jsonify({"error": "Authentication failed or Aadhaar not found"}), 400
 
 @app.route('/health', methods=['GET'])
+@app.route('/api/v1/health', methods=['GET'])
 def health():
-    """Health check endpoint"""
+    """
+    Health check endpoint.
+    
+    Available at both /health and /api/v1/health for compatibility.
+    
+    Returns:
+        JSON response with health status
+    """
     return jsonify({"status": "healthy"}), 200
 
 # TEST SCENARIO: Traffic Replay - Record all requests

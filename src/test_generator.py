@@ -46,8 +46,26 @@ class TestGenerator:
         return test_code
     
     def _build_prompt(self, parsed_spec: Dict) -> str:
-        """Build prompt for LLM"""
+        """
+        Build prompt for LLM code generation.
+        
+        Extracts base path from base_url and combines with endpoint paths
+        to generate correct test requests.
+        
+        Parameters:
+            parsed_spec: Dictionary containing API specification
+            
+        Returns:
+            Formatted prompt string for LLM
+        """
         endpoints = parsed_spec['endpoints']
+        base_url = parsed_spec.get('base_url', 'http://localhost:5001/api/v1')
+        
+        # Extract base path from base_url
+        # Example: 'http://localhost:5001/api/v1' -> '/api/v1'
+        from urllib.parse import urlparse
+        parsed_url = urlparse(base_url)
+        base_path = parsed_url.path or ''
         
         prompt = f"""You are an expert Python test engineer. Generate pytest test code for the following REST API.
 
@@ -55,7 +73,7 @@ Requirements:
 - Use pytest framework
 - Import Flask app directly: from api.dummy_aadhaar_api import app
 - Use Flask test client: client = app.test_client()
-- Make requests using: response = client.post('/api/v1/path', json={{...}})
+- Make requests using full paths including base path: response = client.post('{base_path}/path', json={{...}})
 - Include tests for success cases (2xx responses)
 - Include tests for error cases (4xx responses)
 - Test with valid and invalid payloads
@@ -63,12 +81,15 @@ Requirements:
 - Use pytest fixtures for test client
 - Follow PEP 8 style guide
 
+IMPORTANT: All request paths must start with '{base_path}' (base path from API spec)
+
 API Endpoints to test:
 
 """
         
         for ep in endpoints:
-            prompt += f"\n{ep['method']} {ep['path']}\n"
+            full_path = base_path + ep['path']
+            prompt += f"\n{ep['method']} {full_path}\n"
             prompt += f"Summary: {ep['summary']}\n"
             
             if ep['request_body'].get('properties'):
@@ -78,12 +99,14 @@ API Endpoints to test:
             prompt += f"Expected responses: {list(ep['responses'].keys())}\n"
             prompt += "\n"
         
-        prompt += """
+        prompt += f"""
 Generate ONLY the Python code for pytest tests. Include:
 1. Import statements (pytest, from api.dummy_aadhaar_api import app)
 2. Pytest fixture for test client
 3. Test functions using client.post(), client.get(), etc.
 4. Assert statements for status codes and response structure
+
+IMPORTANT: ALL test requests MUST include the base path '{base_path}'
 
 Example structure:
 ```python
@@ -95,8 +118,8 @@ def client():
     return app.test_client()
 
 def test_example(client):
-    response = client.post('/api/v1/path', json={{"field": "value"}})
-    assert response.status_code == 200
+    response = client.post('{base_path}/aadhaar/verify', json={{"aadhaar_number": "123456789012"}})
+    assert response.status_code == 201
 ```
 
 Do not include explanations, just the code. Start directly with imports.
