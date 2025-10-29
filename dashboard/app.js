@@ -1326,6 +1326,15 @@ function handleTestRegenerationEvent(data) {
         console.error('❌ avgConfidence element not found!');
     }
     
+    // Update the tab badge with total count
+    const healingBadge = document.getElementById('healing-badge');
+    if (healingBadge) {
+        healingBadge.textContent = total_count || 0;
+        console.log('✅ Set healing-badge to:', total_count);
+    } else {
+        console.error('❌ healing-badge element not found!');
+    }
+    
     // Update Overview tab to show selective regeneration breakdown
     const testsLabel = document.getElementById('tests-label');
     const testsGenerated = document.getElementById('tests-generated');

@@ -130,7 +130,8 @@ def receive_event():
 def view_tests():
     """View generated test file with syntax highlighting"""
     try:
-        tests_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'tests')
+        # Updated to use specs/tests/ folder
+        tests_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'specs', 'tests')
         
         # Find the most recent test file
         test_files = sorted([f for f in os.listdir(tests_dir) if f.startswith('test_aadhaar_api')], reverse=True)
@@ -598,7 +599,8 @@ def coverage_files(filename):
 def generated_tests():
     """Show latest generated test file"""
     try:
-        tests_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'tests')
+        # Updated to use specs/tests/ folder
+        tests_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'specs', 'tests')
         
         # Find all test files
         test_files = []

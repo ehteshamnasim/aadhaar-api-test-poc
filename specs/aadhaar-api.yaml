@@ -1,8 +1,8 @@
 openapi: 3.0.0
 info:
   title: UIDAI Aadhaar API
-  version: 1.12.11
-  description: Dummy Aadhaar verification APIs for POC - Testing Change Detection v3
+  version: 1.12.10
+  description: Dummy Aadhaar verification APIs for POC - Testing Change Detection v2
 
 servers:
   - url: http://localhost:5001/api/v2
@@ -25,20 +25,16 @@ paths:
                   example: "123456789012"
                 captcha:
                   type: string
-                  description: "Captcha code for verification (updated v3)"
+                  description: "Captcha code for verification (updated v2)"
                   example: "ABC123"
                 device_id:
                   type: string
-                  description: "Device identifier for security tracking and audit"
+                  description: "Device identifier for security tracking"
                   example: "DEVICE123"
                 session_token:
                   type: string
-                  description: "User session token for authentication"
+                  description: "User session token"
                   example: "TOKEN123"
-                request_id:
-                  type: string
-                  description: "Unique request identifier for tracing"
-                  example: "REQ-12345"
               required:
                 - aadhaar_number
                 - captcha
@@ -82,7 +78,19 @@ paths:
                   error:
                     type: string
                     example: "Missing authentication token"
-
+        '403':
+          description: Forbidden - Invalid captcha
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "forbidden"
+                  error:
+                    type: string
+                    example: "Authentication required"
 
                     
 
