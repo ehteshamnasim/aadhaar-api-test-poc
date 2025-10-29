@@ -83,8 +83,14 @@ def send_event(event_type: str, data: dict):
 
 
 class POCOrchestrator:
-    def __init__(self, spec_path: str, output_dir: str = 'tests'):
+    def __init__(self, spec_path: str, output_dir: str = None):
         self.spec_path = spec_path
+        
+        # If no output_dir specified, use same folder as spec file
+        if output_dir is None:
+            spec_dir = os.path.dirname(spec_path) or '.'
+            output_dir = spec_dir
+        
         self.output_dir = output_dir
         self.test_file_path = None
         self.start_time = datetime.now()
@@ -123,13 +129,10 @@ class POCOrchestrator:
         Each spec file has its own version tracking
         """
         try:
-            # Create tracking directory for spec versions
-            tracking_dir = os.path.join('specs', '.versions')
-            os.makedirs(tracking_dir, exist_ok=True)
-            
-            # Create spec-specific version file based on spec filename
+            # Store baseline in same directory as spec file (hidden file)
+            spec_dir = os.path.dirname(self.spec_path) or '.'
             spec_basename = os.path.basename(self.spec_path).replace('.yaml', '').replace('.yml', '')
-            version_file = os.path.join(tracking_dir, f'{spec_basename}.baseline')
+            version_file = os.path.join(spec_dir, f'.{spec_basename}.baseline')
             
             # Read current spec
             with open(self.spec_path, 'r') as f:
@@ -772,23 +775,28 @@ class POCOrchestrator:
             t.join(timeout=1)
             
             # Merge with previous tests if doing selective regeneration
+            was_selective = False
             if previous_tests and self.spec_changes:
                 test_code = self._merge_tests(previous_tests, test_code, parsed_spec)
+                was_selective = True
             
-            # Count unique tests and send individual test events
+            # Count unique tests 
             test_names = []
             for line in test_code.split('\n'):
                 if line.strip().startswith('def test_'):
                     name = line.split('(')[0].replace('def ', '').strip()
                     if name not in test_names:
                         test_names.append(name)
-                        # Send individual test creation event
-                        send_event('test_created', {
-                            'test_number': len(test_names),
-                            'test_name': name,
-                            'total_expected': self.endpoint_count * 2  # Rough estimate
-                        })
-                        time.sleep(0.1)  # Small delay for visual effect
+                        
+                        # Only send individual test events if NOT selective regeneration
+                        # (selective regeneration already sent the regeneration event with counts)
+                        if not was_selective:
+                            send_event('test_created', {
+                                'test_number': len(test_names),
+                                'test_name': name,
+                                'total_expected': self.endpoint_count * 2  # Rough estimate
+                            })
+                            time.sleep(0.1)  # Small delay for visual effect
             
             self.unique_test_count = len(test_names)
             

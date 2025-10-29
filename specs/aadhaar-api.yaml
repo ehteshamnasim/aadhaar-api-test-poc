@@ -96,20 +96,8 @@ paths:
                   error:
                     type: string
                     example: "Too many requests, please try again later"
-                    
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: "error"
-                  error:
-                    type: string
-                    example: "Internal server error"
+
+
 
 
 
