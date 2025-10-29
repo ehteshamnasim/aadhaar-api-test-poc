@@ -117,16 +117,7 @@ paths:
                 properties:
                   error:
                     type: string
-        '403':
-          description: Consent not provided
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-                    example: "Consent required"
+
 
   /aadhaar/otp/generate:
     post:

@@ -130,11 +130,14 @@ Generate ONLY the Python code for pytest tests. Include:
 5. For each endpoint, create at least:
    - 1 success test with ALL required fields (including consent: true if needed)
    - 1 test for missing required field (expect 400)
+   - 1 test for invalid field format/pattern (expect 400)
    - 1 test for consent validation if endpoint has consent field (expect 403)
+6. For GET endpoints with query parameters, test both valid and missing params
+7. Validate response JSON structure, not just status codes
 
 IMPORTANT: ALL test requests MUST include the base path '{base_path}'
 
-Example structure for endpoint with consent:
+Example structure for POST endpoint with consent:
 ```python
 import pytest
 from api.dummy_aadhaar_api import app
@@ -152,10 +155,19 @@ def test_demographics_success(client):
     assert response.status_code == 200
     data = response.get_json()
     assert 'name' in data
+    assert 'dob' in data
 
 def test_demographics_missing_aadhaar(client):
     # Missing non-consent field → 400
     response = client.post('{base_path}/aadhaar/demographics', json={{
+        "consent": true
+    }})
+    assert response.status_code == 400
+
+def test_demographics_invalid_aadhaar_format(client):
+    # Invalid format → 400
+    response = client.post('{base_path}/aadhaar/demographics', json={{
+        "aadhaar_number": "123",  # Invalid - not 12 digits
         "consent": true
     }})
     assert response.status_code == 400
@@ -166,6 +178,24 @@ def test_demographics_no_consent(client):
         "aadhaar_number": "123456789012"
     }})
     assert response.status_code == 403
+```
+
+Example for GET endpoint with query params:
+```python
+def test_masked_aadhaar_success(client):
+    response = client.get('{base_path}/aadhaar/masked-aadhaar?aadhaar_number=123456789012')
+    assert response.status_code == 200
+    data = response.get_json()
+    assert 'masked_aadhaar' in data
+    assert data['masked_aadhaar'] == 'XXXXXXXX9012'
+
+def test_masked_aadhaar_missing_param(client):
+    response = client.get('{base_path}/aadhaar/masked-aadhaar')
+    assert response.status_code == 400
+
+def test_masked_aadhaar_invalid_format(client):
+    response = client.get('{base_path}/aadhaar/masked-aadhaar?aadhaar_number=123')
+    assert response.status_code == 400
 ```
 
 Do not include explanations, just the code. Start directly with imports.
