@@ -1284,9 +1284,12 @@ function handleTestRegenerationEvent(data) {
         total_count: total_count
     });
     
-    if (totalHealings) totalHealings.textContent = changed_endpoints ? changed_endpoints.length : 0;
+    // Total Healings = Total test count (shows all tests including preserved + regenerated)
+    if (totalHealings) totalHealings.textContent = total_count || 0;
+    // Success Rate = Percentage of tests preserved (not regenerated)
     const preservedPercent = preserved_count > 0 ? Math.round((preserved_count / total_count) * 100) : 0;
     if (successRate) successRate.textContent = preservedPercent + '%';
+    // Average Confidence = Number of tests regenerated
     if (avgConfidence) avgConfidence.textContent = regenerated_count;
     
     // Update Overview tab to show selective regeneration breakdown
