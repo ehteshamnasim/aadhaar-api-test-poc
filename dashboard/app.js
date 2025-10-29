@@ -1224,12 +1224,13 @@ function handleTestRegenerationEvent(data) {
         const banner = document.createElement('div');
         banner.className = 'regeneration-banner';
         banner.style.cssText = `
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            background: white;
+            color: black;
             padding: 20px;
             border-radius: 8px;
             margin: 20px 0;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border: 1px solid #e5e7eb;
         `;
         
         const effectiveness = preserved_count > 0 ? 
@@ -1238,40 +1239,40 @@ function handleTestRegenerationEvent(data) {
         banner.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div>
-                    <h3 style="margin: 0 0 10px 0; font-size: 18px;">
-                        ♻️ Selective Test Regeneration
+                    <h3 style="margin: 0 0 10px 0; font-size: 18px; color: black;">
+                        Selective Test Regeneration
                     </h3>
-                    <p style="margin: 0; opacity: 0.9;">
+                    <p style="margin: 0; color: #666;">
                         Smart regeneration: ${preserved_count} tests preserved, ${regenerated_count} regenerated
                     </p>
                 </div>
                 <div style="text-align: right;">
-                    <div style="font-size: 32px; font-weight: bold; margin-bottom: 5px;">
+                    <div style="font-size: 32px; font-weight: bold; margin-bottom: 5px; color: black;">
                         ${effectiveness}%
                     </div>
-                    <div style="opacity: 0.9; font-size: 12px;">Tests Preserved</div>
+                    <div style="color: #666; font-size: 12px;">Tests Preserved</div>
                 </div>
             </div>
-            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.2);">
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-top: 15px; padding-top: 15px; border-top: 1px solid #e5e7eb;">
                 <div>
-                    <div style="opacity: 0.8; font-size: 12px;">Preserved Tests</div>
-                    <div style="font-size: 16px; margin-top: 5px;">
-                        ✓ ${preserved_count} tests (${unchanged_endpoints ? unchanged_endpoints.length : 0} endpoints)
+                    <div style="color: #666; font-size: 12px;">Preserved Tests</div>
+                    <div style="font-size: 16px; margin-top: 5px; color: black;">
+                        ${preserved_count} tests (${unchanged_endpoints ? unchanged_endpoints.length : 0} endpoints)
                     </div>
                 </div>
                 <div>
-                    <div style="opacity: 0.8; font-size: 12px;">Regenerated Tests</div>
-                    <div style="font-size: 16px; margin-top: 5px;">
-                        🔄 ${regenerated_count} tests (${changed_endpoints ? changed_endpoints.length : 0} endpoints)
+                    <div style="color: #666; font-size: 12px;">Regenerated Tests</div>
+                    <div style="font-size: 16px; margin-top: 5px; color: black;">
+                        ${regenerated_count} tests (${changed_endpoints ? changed_endpoints.length : 0} endpoints)
                     </div>
                 </div>
             </div>
             ${changed_endpoints && changed_endpoints.length > 0 ? `
-                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.2);">
-                    <div style="opacity: 0.8; font-size: 12px; margin-bottom: 8px;">Changed Endpoints:</div>
+                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e5e7eb;">
+                    <div style="color: #666; font-size: 12px; margin-bottom: 8px;">Changed Endpoints:</div>
                     <div style="display: flex; flex-wrap: wrap; gap: 8px;">
                         ${changed_endpoints.map(ep => `
-                            <span style="background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 12px; font-size: 12px;">
+                            <span style="background: #f3f4f6; color: black; padding: 4px 12px; border-radius: 12px; font-size: 12px;">
                                 ${ep}
                             </span>
                         `).join('')}
