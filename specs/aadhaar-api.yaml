@@ -1,8 +1,8 @@
 openapi: 3.0.0
 info:
   title: UIDAI Aadhaar API
-  version: 1.7
-  description: Dummy Aadhaar verification APIs for POC - Testing Self-Healing v2
+  version: 1.9
+  description: Dummy Aadhaar verification APIs for POC - Testing Selective Regeneration
 
 servers:
   - url: http://localhost:5001/api/v1
@@ -52,6 +52,29 @@ paths:
                   error:
                     type: string
                     example: "Invalid Aadhaar format"
+
+  /aadhaar/test-new-endpoint:
+    get:
+      summary: Test new endpoint for regeneration
+      description: This endpoint tests selective regeneration
+      parameters:
+        - name: test_id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  test_id:
+                    type: string
 
   /aadhaar/demographics:
     post:

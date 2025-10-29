@@ -118,33 +118,32 @@ class POCOrchestrator:
     
     def detect_spec_changes(self):
         """
-        Detects changes in API specification by comparing with previous commit
+        Detects changes in API specification by comparing with previous version
+        Uses file-based tracking instead of git (no git dependency)
+        Each spec file has its own version tracking
         """
         try:
-            # Check if we're in a git repository
-            result = subprocess.run(['git', 'rev-parse', '--git-dir'], 
-                                  capture_output=True, text=True)
-            if result.returncode != 0:
-                print("   ⚠ Not a git repository, skipping API diff")
-                return
-            
-            # Get previous version of spec file
-            result = subprocess.run(
-                ['git', 'show', f'HEAD:{self.spec_path}'],
-                capture_output=True, text=True
-            )
-            
-            if result.returncode != 0:
-                print("   ⚠ No previous spec version found")
-                return
-            
-            prev_spec = result.stdout
+            # Create spec-specific version file based on spec filename
+            spec_basename = os.path.basename(self.spec_path).replace('.yaml', '').replace('.yml', '')
+            version_file = f'.spec_version_{spec_basename}'
             
             # Read current spec
             with open(self.spec_path, 'r') as f:
                 current_spec = f.read()
             
-            # Simple comparison of endpoints
+            # Check if previous version exists
+            if not os.path.exists(version_file):
+                print(f"   ℹ️  First run for {spec_basename} - saving spec baseline")
+                # Save current spec as baseline for next run
+                with open(version_file, 'w') as f:
+                    f.write(current_spec)
+                return
+            
+            # Load previous spec
+            with open(version_file, 'r') as f:
+                prev_spec = f.read()
+            
+            # Compare specs
             changes = self._compare_specs(prev_spec, current_spec)
             
             if changes:
@@ -155,11 +154,15 @@ class POCOrchestrator:
                     if 'path' in change:
                         self.changed_endpoints.add(change['path'])
                 
-                print(f"   ✓ Detected {len(changes)} API changes")
+                print(f"   ✓ Detected {len(changes)} API changes in {spec_basename}")
                 print(f"   → {len(self.changed_endpoints)} endpoints affected")
                 send_api_diff_event(changes)
+                
+                # Update baseline after successful detection
+                with open(version_file, 'w') as f:
+                    f.write(current_spec)
             else:
-                print("   ✓ No API changes detected")
+                print(f"   ✓ No API changes detected in {spec_basename}")
                 
         except Exception as e:
             print(f"   ⚠ API diff detection error: {e}")
@@ -1285,7 +1288,26 @@ def client():
 
 
 def main():
-    orchestrator = POCOrchestrator(spec_path='specs/aadhaar-api.yaml')
+    """
+    Main entry point for test automation
+    
+    Usage:
+        python main.py specs/aadhaar-api.yaml
+        python main.py specs/payment-api.yaml
+        python main.py specs/user-management.yaml
+    """
+    if len(sys.argv) < 2:
+        print("Usage: python main.py <spec_file_path>")
+        print("Example: python main.py specs/aadhaar-api.yaml")
+        sys.exit(1)
+    
+    spec_path = sys.argv[1]
+    
+    if not os.path.exists(spec_path):
+        print(f"Error: Spec file not found: {spec_path}")
+        sys.exit(1)
+    
+    orchestrator = POCOrchestrator(spec_path=spec_path)
     orchestrator.run()
 
 
