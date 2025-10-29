@@ -25,12 +25,16 @@ paths:
                   example: "123456789012"
                 captcha:
                   type: string
-                  description: "Captcha code for verification (updated)"
+                  description: "Captcha code for verification (updated v2)"
                   example: "ABC123"
                 device_id:
                   type: string
-                  description: "Device identifier for security"
+                  description: "Device identifier for security tracking"
                   example: "DEVICE123"
+                session_token:
+                  type: string
+                  description: "User session token"
+                  example: "TOKEN123"
               required:
                 - aadhaar_number
                 - captcha
@@ -87,19 +91,7 @@ paths:
                   error:
                     type: string
                     example: "Authentication required"
-        '429':
-          description: Too many requests
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: "rate_limited"
-                  error:
-                    type: string
-                    example: "Too many requests, please try again later"
+
                     
 
 

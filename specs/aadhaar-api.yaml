@@ -78,19 +78,7 @@ paths:
                   error:
                     type: string
                     example: "Missing authentication token"
-        '403':
-          description: Forbidden - Invalid captcha
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: "forbidden"
-                  error:
-                    type: string
-                    example: "Authentication required"
+
 
                     
 

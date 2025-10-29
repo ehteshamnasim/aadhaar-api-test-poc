@@ -587,9 +587,25 @@ class POCOrchestrator:
         
         tests = []
         
+        # Remove section headers from the test code before extraction
+        # This prevents duplicate headers from being included in preserved tests
+        cleaned_code = re.sub(
+            r'#\s*={20,}\s*\n#\s*(PRESERVED|REGENERATED)\s+TESTS.*?\n#.*?\n#\s*={20,}\s*\n',
+            '',
+            test_code,
+            flags=re.MULTILINE
+        )
+        
+        # Also remove inline comments that mark tests
+        cleaned_code = re.sub(
+            r'#\s*[✓🔄]\s*(PRESERVED|REGENERATED)\s*-.*?\n',
+            '',
+            cleaned_code
+        )
+        
         # Find all test functions
         test_pattern = r'(def test_\w+\(.*?\):.*?)(?=\ndef test_|\Z)'
-        matches = re.findall(test_pattern, test_code, re.DOTALL)
+        matches = re.findall(test_pattern, cleaned_code, re.DOTALL)
         
         for test_func in matches:
             # Check if test belongs to an endpoint we want to keep
