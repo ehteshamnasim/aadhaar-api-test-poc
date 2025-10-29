@@ -86,6 +86,16 @@ paths:
                   retry_after:
                     type: integer
                     example: 60
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Internal server error occurred"
 
   /aadhaar/test-new-endpoint:
     get:

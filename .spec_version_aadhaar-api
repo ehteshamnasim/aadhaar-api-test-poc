@@ -8,7 +8,7 @@ servers:
   - url: http://localhost:5001/api/v2
 
 paths:
-  /aadhaar/verify-aadhaar:
+  /aadhaar/verify-cache:
     post:
       summary: Verify Aadhaar number - NOW WITH CAPTCHA
       description: Validates if Aadhaar number is valid (12 digits) and requires captcha
@@ -31,7 +31,7 @@ paths:
                 - aadhaar_number
                 - captcha
       responses:
-        '200':
+        '201':
           description: Valid Aadhaar
           content:
             application/json:
@@ -86,6 +86,16 @@ paths:
                   retry_after:
                     type: integer
                     example: 60
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Internal server error occurred"
 
   /aadhaar/test-new-endpoint:
     get:
