@@ -1185,7 +1185,9 @@ body {
 /* Coverage Container */
 .coverage-container {
     display: flex;
-    justify-content: center;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
     padding: 16px 0;
 }
 
@@ -1208,6 +1210,66 @@ body {
     font-size: 24px;
     font-weight: 700;
     color: var(--gray-900);
+}
+
+/* Coverage Details */
+.coverage-details {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    width: 100%;
+}
+
+.coverage-detail-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px;
+    background: var(--gray-50);
+    border-radius: 4px;
+    gap: 4px;
+}
+
+.coverage-label {
+    font-size: 11px;
+    color: var(--gray-600);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 500;
+}
+
+.coverage-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--gray-900);
+}
+
+.coverage-value.error-text {
+    color: var(--error);
+}
+
+.action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: var(--gray-100);
+    border: 1px solid var(--gray-300);
+    border-radius: 4px;
+    color: var(--gray-700);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.action-btn:hover {
+    background: var(--gray-200);
+    border-color: var(--gray-400);
+}
+
+.action-btn svg {
+    flex-shrink: 0;
 }
 
 /* Contract Stats */

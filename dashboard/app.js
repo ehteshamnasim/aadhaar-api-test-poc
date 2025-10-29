@@ -390,8 +390,19 @@ function connectSSE() {
                 
             case 'coverage':
                 const percentage = data.percentage || 0;
+                const linesCovered = data.lines_covered || 0;
+                const linesTotal = data.lines_total || 0;
+                const linesMissing = linesTotal - linesCovered;
+                
                 updateCoverage(percentage);
-                addLog(`Code coverage analysis: ${percentage}%`, percentage >= 85 ? 'success' : 'warning');
+                
+                // Update coverage details
+                document.getElementById('coverage-lines-covered').textContent = linesCovered;
+                document.getElementById('coverage-lines-total').textContent = linesTotal;
+                document.getElementById('coverage-lines-missing').textContent = linesMissing;
+                
+                addLog(`Code coverage analysis: ${percentage}% (${linesCovered}/${linesTotal} lines, ${linesMissing} missing)`, 
+                       percentage >= 80 ? 'success' : percentage >= 70 ? 'warning' : 'error');
                 
                 if (percentage > 0) {
                     document.getElementById('coverage-btn').style.display = 'inline-flex';

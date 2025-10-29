@@ -1277,12 +1277,18 @@ def client():
                 cwd=project_root
             )
             
-            # Parse
+            # Parse coverage data
             coverage = 0
+            lines_covered = 0
+            lines_total = 0
             for line in result.stdout.split('\n'):
                 if 'TOTAL' in line:
                     parts = line.split()
                     try:
+                        # Format: Name  Stmts  Miss  Cover
+                        lines_total = int(parts[1]) if len(parts) > 1 else 0
+                        lines_missing = int(parts[2]) if len(parts) > 2 else 0
+                        lines_covered = lines_total - lines_missing
                         coverage = int(float(parts[-1].rstrip('%')))
                     except:
                         pass
@@ -1291,14 +1297,18 @@ def client():
             subprocess.run(['coverage', 'html', '-d', 'htmlcov'], capture_output=True, cwd=project_root)
             
             self.actual_coverage = coverage
-            print(f"   ✓ Coverage: {coverage}%")
+            print(f"   ✓ Coverage: {coverage}% ({lines_covered}/{lines_total} lines)")
             
-            send_event('coverage', {'percentage': coverage})
+            send_event('coverage', {
+                'percentage': coverage,
+                'lines_covered': lines_covered,
+                'lines_total': lines_total
+            })
             
         except Exception as e:
             print(f"   ✗ Coverage error: {e}")
             self.actual_coverage = 0
-            send_event('coverage', {'percentage': 0})
+            send_event('coverage', {'percentage': 0, 'lines_covered': 0, 'lines_total': 0})
     
     def show_comparison(self):
         """Comparison"""
