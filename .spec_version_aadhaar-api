@@ -1,14 +1,14 @@
 openapi: 3.0.0
 info:
   title: UIDAI Aadhaar API
-  version: 1.12.8
+  version: 1.12.9
   description: Dummy Aadhaar verification APIs for POC - Testing Change Detection v2
 
 servers:
   - url: http://localhost:5001/api/v2
 
 paths:
-  /aadhaar/verify:
+  /aadhaar/verify-cache:
     post:
       summary: Verify Aadhaar number - NOW WITH CAPTCHA
       description: Validates if Aadhaar number is valid (12 digits) and requires captcha
@@ -31,7 +31,7 @@ paths:
                 - aadhaar_number
                 - captcha
       responses:
-        '200':
+        '201':
           description: Valid Aadhaar
           content:
             application/json:
