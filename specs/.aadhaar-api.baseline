@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: UIDAI Aadhaar API
-  version: 1.12.9
+  version: 1.12.10
   description: Dummy Aadhaar verification APIs for POC - Testing Change Detection v2
 
 servers:
@@ -25,8 +25,12 @@ paths:
                   example: "123456789012"
                 captcha:
                   type: string
-                  description: "Captcha code for verification"
+                  description: "Captcha code for verification (updated)"
                   example: "ABC123"
+                device_id:
+                  type: string
+                  description: "Device identifier for security"
+                  example: "DEVICE123"
               required:
                 - aadhaar_number
                 - captcha
@@ -97,19 +101,7 @@ paths:
                     type: string
                     example: "Too many requests, please try again later"
                     
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: "error"
-                  error:
-                    type: string
-                    example: "Internal server error"
+
 
 
 

@@ -1189,6 +1189,8 @@ function createChangeItem(change) {
  * Handle test regeneration event
  */
 function handleTestRegenerationEvent(data) {
+    console.log('🔄 TEST REGENERATION EVENT RECEIVED:', data);
+    
     const {
         preserved_count,
         regenerated_count,
@@ -1198,8 +1200,18 @@ function handleTestRegenerationEvent(data) {
         spec_changes
     } = data;
     
+    console.log('📊 Extracted values:', {
+        preserved_count,
+        regenerated_count,
+        total_count,
+        changed_endpoints,
+        unchanged_endpoints
+    });
+    
     // Create regeneration banner in the Test Regeneration tab
     const healingList = document.getElementById('healing-list');
+    console.log('🎯 healing-list element:', healingList);
+    
     if (healingList) {
         // Remove empty state
         const emptyState = healingList.querySelector('.empty-state');
@@ -1276,21 +1288,43 @@ function handleTestRegenerationEvent(data) {
     const successRate = document.getElementById('success-rate');
     const avgConfidence = document.getElementById('avg-confidence');
     
-    console.log('Updating Test Regeneration stats:', {
+    console.log('🎯 DOM Elements found:', {
         totalHealings: totalHealings,
-        changed_endpoints_length: changed_endpoints ? changed_endpoints.length : 0,
+        successRate: successRate,
+        avgConfidence: avgConfidence
+    });
+    
+    console.log('📈 Updating Test Regeneration stats:', {
+        total_count: total_count,
         preserved_count: preserved_count,
         regenerated_count: regenerated_count,
-        total_count: total_count
+        preservedPercent: preserved_count > 0 ? Math.round((preserved_count / total_count) * 100) : 0
     });
     
     // Total Healings = Total test count (shows all tests including preserved + regenerated)
-    if (totalHealings) totalHealings.textContent = total_count || 0;
+    if (totalHealings) {
+        totalHealings.textContent = total_count || 0;
+        console.log('✅ Set totalHealings to:', total_count);
+    } else {
+        console.error('❌ totalHealings element not found!');
+    }
+    
     // Success Rate = Percentage of tests preserved (not regenerated)
     const preservedPercent = preserved_count > 0 ? Math.round((preserved_count / total_count) * 100) : 0;
-    if (successRate) successRate.textContent = preservedPercent + '%';
+    if (successRate) {
+        successRate.textContent = preservedPercent + '%';
+        console.log('✅ Set successRate to:', preservedPercent + '%');
+    } else {
+        console.error('❌ successRate element not found!');
+    }
+    
     // Average Confidence = Number of tests regenerated
-    if (avgConfidence) avgConfidence.textContent = regenerated_count;
+    if (avgConfidence) {
+        avgConfidence.textContent = regenerated_count;
+        console.log('✅ Set avgConfidence to:', regenerated_count);
+    } else {
+        console.error('❌ avgConfidence element not found!');
+    }
     
     // Update Overview tab to show selective regeneration breakdown
     const testsLabel = document.getElementById('tests-label');

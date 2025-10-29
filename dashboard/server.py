@@ -19,8 +19,32 @@ client_queues_lock = threading.Lock()
 event_history = []
 MAX_HISTORY = 100
 
+# Event persistence file
+EVENT_HISTORY_FILE = os.path.join(os.path.dirname(__file__), '.event_history.json')
+
 # Lock for thread-safe operations
 history_lock = threading.Lock()
+
+def load_event_history():
+    """Load event history from disk on startup"""
+    global event_history
+    try:
+        if os.path.exists(EVENT_HISTORY_FILE):
+            with open(EVENT_HISTORY_FILE, 'r') as f:
+                event_history = json.load(f)
+            print(f"[Dashboard] 📂 Loaded {len(event_history)} events from history")
+    except Exception as e:
+        print(f"[Dashboard] ⚠️  Failed to load event history: {e}")
+        event_history = []
+
+def save_event_history():
+    """Save event history to disk"""
+    try:
+        with history_lock:
+            with open(EVENT_HISTORY_FILE, 'w') as f:
+                json.dump(event_history, f)
+    except Exception as e:
+        print(f"[Dashboard] ⚠️  Failed to save event history: {e}")
 
 def broadcast_event(event_type: str, data: dict):
     """Broadcast event to all connected clients"""
@@ -35,6 +59,9 @@ def broadcast_event(event_type: str, data: dict):
         event_history.append(event)
         if len(event_history) > MAX_HISTORY:
             event_history.pop(0)
+    
+    # Save to disk asynchronously
+    threading.Thread(target=save_event_history, daemon=True).start()
     
     # Broadcast to all connected clients
     with client_queues_lock:
@@ -275,6 +302,28 @@ def health():
         'clients_connected': client_count,
         'history_size': history_count,
         'timestamp': time.time()
+    }, 200
+
+@app.route('/api/debug/events', methods=['GET'])
+def debug_events():
+    """Debug endpoint to view event history"""
+    with history_lock:
+        events_copy = list(event_history)
+    
+    # Count event types
+    event_counts = {}
+    for event in events_copy:
+        event_type = event.get('type', 'unknown')
+        event_counts[event_type] = event_counts.get(event_type, 0) + 1
+    
+    # Find test_regeneration events
+    regeneration_events = [e for e in events_copy if e.get('type') == 'test_regeneration']
+    
+    return {
+        'total_events': len(events_copy),
+        'event_types': event_counts,
+        'test_regeneration_events': regeneration_events,
+        'last_20_events': events_copy[-20:] if events_copy else []
     }, 200
 
 @app.route('/coverage-report')
@@ -817,6 +866,9 @@ if __name__ == '__main__':
     print("📨 Event API: POST http://localhost:5050/api/event")
     print("💚 Health: http://localhost:5050/api/health")
     print("\n⏹️  Press Ctrl+C to stop\n")
+    
+    # Load event history from disk
+    load_event_history()
     
     app.run(host='0.0.0.0', port=5050, debug=False, threaded=True)
 
