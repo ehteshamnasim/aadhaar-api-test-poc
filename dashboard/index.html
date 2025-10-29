@@ -57,7 +57,7 @@
                 <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
                 <polyline points="22 4 12 14.01 9 11.01"/>
             </svg>
-            Self-Healing
+            Test Regeneration
             <span id="healing-badge" class="tab-badge">0</span>
         </button>
         <button class="tab-btn" data-tab="errors">
@@ -437,50 +437,50 @@
         </div>
         <!-- End Overview Tab -->
 
-        <!-- Self-Healing Tab -->
+        <!-- Test Regeneration Tab -->
         <div id="healing-tab" class="tab-pane">
             <div class="tab-description">
-                <strong>Self-Healing:</strong> AI-powered automatic test repair system. When tests fail due to API changes, the system analyzes failure patterns and automatically generates corrected test code with confidence scores. View healing attempts, success rates, and code diffs for each auto-repaired test.
+                <strong>Selective Regeneration:</strong> Smart test regeneration when API spec changes are detected. The system preserves passing tests for unchanged endpoints and only regenerates tests for modified endpoints. Track spec changes, preserved tests, and regenerated tests with full change history.
             </div>
             <div class="feature-container">
                 <div class="feature-header">
-                    <h2>Self-Healing Tests</h2>
-                    <p>Automatically repair broken tests when APIs change</p>
+                    <h2>Test Regeneration</h2>
+                    <p>Selective test regeneration based on API specification changes</p>
                 </div>
                 
                 <div class="stats-grid">
                     <div class="stat-card">
                         <span class="stat-number" id="total-healings">0</span>
-                        <span class="stat-label">Total Healings</span>
+                        <span class="stat-label">Spec Changes</span>
                     </div>
                     <div class="stat-card success">
                         <span class="stat-number" id="success-rate">0%</span>
-                        <span class="stat-label">Success Rate</span>
+                        <span class="stat-label">Tests Preserved</span>
                     </div>
                     <div class="stat-card info">
-                        <span class="stat-number" id="avg-confidence">0%</span>
-                        <span class="stat-label">Avg Confidence</span>
+                        <span class="stat-number" id="avg-confidence">0</span>
+                        <span class="stat-label">Regenerated</span>
                     </div>
                 </div>
 
                 <div class="feature-content">
                     <div class="feature-panel">
-                        <h3>Recent Healing Operations</h3>
+                        <h3>Recent Regeneration Operations</h3>
                         <div id="healing-list" class="healing-list">
-                            <div class="empty-state">No healing operations yet</div>
+                            <div class="empty-state">No regeneration operations yet</div>
                         </div>
                     </div>
                     
                     <div class="feature-panel">
-                        <h3>Code Diff Viewer</h3>
+                        <h3>Spec Changes & Test Impact</h3>
                         <div id="code-diff" class="code-diff-viewer">
-                            <div class="empty-state">Select a healing operation to view diff</div>
+                            <div class="empty-state">No spec changes detected yet</div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        <!-- End Self-Healing Tab -->
+        <!-- End Test Regeneration Tab -->
 
         <!-- Error Analysis Tab -->
         <div id="errors-tab" class="tab-pane">

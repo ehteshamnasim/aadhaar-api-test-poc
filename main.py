@@ -26,21 +26,6 @@ import re
 DASHBOARD_URL = "http://localhost:5050"
 
 # Dashboard integration functions
-def send_healing_event(test_name, confidence, old_code, new_code):
-    """Send self-healing event to dashboard"""
-    healing_data = {
-        'type': 'healing',
-        'test_name': test_name,
-        'confidence': confidence,
-        'old_code': old_code,
-        'new_code': new_code,
-        'diff': {'before': old_code, 'after': new_code}
-    }
-    try:
-        requests.post(f"{DASHBOARD_URL}/api/event", json=healing_data, timeout=2)
-    except:
-        pass
-
 def send_error_analysis_event(test_name, error_type, message, root_cause, suggestions):
     """Send error analysis event to dashboard"""
     error_data = {
@@ -110,7 +95,8 @@ class POCOrchestrator:
         self.passed_tests = 0
         self.failed_tests = 0
         self.actual_coverage = 0
-        self.healed_tests = []
+        self.spec_changes = []  # Track detected spec changes
+        self.changed_endpoints = set()  # Track which endpoints changed
         
         Path(output_dir).mkdir(exist_ok=True)
         Path('api').mkdir(exist_ok=True)
@@ -162,7 +148,15 @@ class POCOrchestrator:
             changes = self._compare_specs(prev_spec, current_spec)
             
             if changes:
+                self.spec_changes = changes  # Store for selective regeneration
+                
+                # Extract changed endpoints
+                for change in changes:
+                    if 'path' in change:
+                        self.changed_endpoints.add(change['path'])
+                
                 print(f"   ✓ Detected {len(changes)} API changes")
+                print(f"   → {len(self.changed_endpoints)} endpoints affected")
                 send_api_diff_event(changes)
             else:
                 print("   ✓ No API changes detected")
@@ -179,8 +173,160 @@ class POCOrchestrator:
             current_spec: Current specification content
             
         Returns:
-            List of change dictionaries
+            List of changes with detailed information
         """
+        import yaml
+        import re
+        
+        changes = []
+        
+        try:
+            # Parse YAML specs
+            prev_data = yaml.safe_load(prev_spec)
+            current_data = yaml.safe_load(current_spec)
+            
+            # Get paths (endpoints)
+            prev_paths = prev_data.get('paths', {})
+            current_paths = current_data.get('paths', {})
+            
+            # Track all paths
+            all_paths = set(list(prev_paths.keys()) + list(current_paths.keys()))
+            
+            for path in all_paths:
+                prev_methods = prev_paths.get(path, {})
+                current_methods = current_paths.get(path, {})
+                
+                # New endpoint
+                if path not in prev_paths:
+                    changes.append({
+                        'type': 'added',
+                        'path': path,
+                        'methods': list(current_methods.keys()),
+                        'description': f'New endpoint: {path}',
+                        'breaking': False,
+                        'recommendation': 'Generate tests for new endpoint'
+                    })
+                
+                # Removed endpoint
+                elif path not in current_paths:
+                    changes.append({
+                        'type': 'removed',
+                        'path': path,
+                        'methods': list(prev_methods.keys()),
+                        'description': f'Endpoint removed: {path}',
+                        'breaking': True,
+                        'recommendation': 'Archive tests for removed endpoint'
+                    })
+                
+                # Modified endpoint - check each HTTP method
+                else:
+                    all_methods = set(list(prev_methods.keys()) + list(current_methods.keys()))
+                    
+                    for method in all_methods:
+                        if method == 'parameters':  # Skip parameter definitions
+                            continue
+                            
+                        prev_method_spec = prev_methods.get(method, {})
+                        current_method_spec = current_methods.get(method, {})
+                        
+                        # New method
+                        if method not in prev_methods:
+                            changes.append({
+                                'type': 'method_added',
+                                'path': path,
+                                'method': method.upper(),
+                                'description': f'New method {method.upper()} added to {path}',
+                                'breaking': False,
+                                'recommendation': f'Generate tests for {method.upper()} {path}'
+                            })
+                        
+                        # Removed method
+                        elif method not in current_methods:
+                            changes.append({
+                                'type': 'method_removed',
+                                'path': path,
+                                'method': method.upper(),
+                                'description': f'Method {method.upper()} removed from {path}',
+                                'breaking': True,
+                                'recommendation': f'Archive tests for {method.upper()} {path}'
+                            })
+                        
+                        # Check for response/request changes
+                        else:
+                            method_changes = self._compare_method_specs(
+                                path, method.upper(), prev_method_spec, current_method_spec
+                            )
+                            changes.extend(method_changes)
+            
+            return changes
+            
+        except Exception as e:
+            print(f"   ⚠️  YAML parsing error, falling back to simple comparison: {e}")
+            # Fallback to regex-based comparison
+            return self._compare_specs_simple(prev_spec, current_spec)
+    
+    def _compare_method_specs(self, path, method, prev_spec, current_spec):
+        """
+        Compare specifications for a specific HTTP method
+        
+        Returns:
+            List of detected changes
+        """
+        changes = []
+        
+        # Check response codes
+        prev_responses = prev_spec.get('responses', {})
+        current_responses = current_spec.get('responses', {})
+        
+        prev_codes = set(prev_responses.keys())
+        current_codes = set(current_responses.keys())
+        
+        # New response codes
+        for code in current_codes - prev_codes:
+            changes.append({
+                'type': 'response_added',
+                'path': path,
+                'method': method,
+                'status_code': code,
+                'description': f'{method} {path}: New response code {code}',
+                'breaking': False,
+                'recommendation': f'Update tests to handle {code} response'
+            })
+        
+        # Removed response codes
+        for code in prev_codes - current_codes:
+            changes.append({
+                'type': 'response_removed',
+                'path': path,
+                'method': method,
+                'status_code': code,
+                'description': f'{method} {path}: Response code {code} removed',
+                'breaking': True,
+                'recommendation': f'Remove test assertions for {code} response'
+            })
+        
+        # Check request body changes
+        prev_request = prev_spec.get('requestBody', {})
+        current_request = current_spec.get('requestBody', {})
+        
+        if prev_request != current_request:
+            changes.append({
+                'type': 'request_modified',
+                'path': path,
+                'method': method,
+                'description': f'{method} {path}: Request body changed',
+                'breaking': True,
+                'recommendation': f'Regenerate tests for {method} {path}'
+            })
+        
+        return changes
+    
+    def _compare_specs_simple(self, prev_spec, current_spec):
+        """
+        Simple regex-based comparison (fallback)
+        """
+        import re
+        
         changes = []
         
         # Extract endpoint paths using regex
@@ -209,7 +355,6 @@ class POCOrchestrator:
         
         # Check for schema changes in common paths
         for path in prev_paths & current_paths:
-            # Simple check: if path content differs significantly
             prev_section = self._extract_path_section(prev_spec, path)
             current_section = self._extract_path_section(current_spec, path)
             
@@ -344,18 +489,196 @@ class POCOrchestrator:
         
         return parsed
     
+    def _filter_spec_for_changed_endpoints(self, parsed_spec):
+        """
+        Filter spec to include only changed endpoints
+        
+        Args:
+            parsed_spec: Full parsed specification
+            
+        Returns:
+            Filtered spec with only changed endpoints
+        """
+        if not self.changed_endpoints:
+            return parsed_spec  # No changes, return full spec
+        
+        filtered_spec = parsed_spec.copy()
+        filtered_spec['endpoints'] = [
+            ep for ep in parsed_spec['endpoints']
+            if ep.get('path') in self.changed_endpoints
+        ]
+        
+        return filtered_spec
+    
+    def _load_previous_tests(self):
+        """
+        Load tests from the most recent previous version
+        
+        Returns:
+            Dict with test code and metadata, or None
+        """
+        if self.version == 1:
+            return None  # No previous version
+        
+        prev_version = self.version - 1
+        prev_filename = f'test_aadhaar_api_v{prev_version}.py' if prev_version > 1 else 'test_aadhaar_api.py'
+        prev_path = os.path.join(self.output_dir, prev_filename)
+        
+        if not os.path.exists(prev_path):
+            return None
+        
+        try:
+            with open(prev_path, 'r') as f:
+                prev_code = f.read()
+            
+            return {
+                'code': prev_code,
+                'version': prev_version,
+                'path': prev_path
+            }
+        except Exception as e:
+            print(f"   ⚠️  Error loading previous tests: {e}")
+            return None
+    
+    def _extract_tests_for_endpoints(self, test_code, endpoints_to_keep):
+        """
+        Extract test functions for specific endpoints from test code
+        
+        Args:
+            test_code: Full test file content
+            endpoints_to_keep: Set of endpoint paths to keep tests for
+            
+        Returns:
+            List of test function strings
+        """
+        import re
+        
+        tests = []
+        
+        # Find all test functions
+        test_pattern = r'(def test_\w+\(.*?\):.*?)(?=\ndef test_|\Z)'
+        matches = re.findall(test_pattern, test_code, re.DOTALL)
+        
+        for test_func in matches:
+            # Check if test belongs to an endpoint we want to keep
+            # Look for endpoint paths in test function
+            keep_test = False
+            
+            if not endpoints_to_keep:  # If no specific endpoints, keep all
+                keep_test = True
+            else:
+                for endpoint in endpoints_to_keep:
+                    # Convert endpoint path to test-friendly format
+                    endpoint_slug = endpoint.replace('/', '_').replace('-', '_').strip('_')
+                    if endpoint_slug in test_func or endpoint in test_func:
+                        keep_test = True
+                        break
+            
+            if keep_test:
+                tests.append(test_func)
+        
+        return tests
+    
+    def _merge_tests(self, old_tests, new_tests, parsed_spec):
+        """
+        Merge old passing tests with newly generated tests
+        
+        Args:
+            old_tests: Previous test code
+            new_tests: Newly generated test code
+            parsed_spec: Current API specification
+            
+        Returns:
+            Merged test code
+        """
+        import re
+        
+        if not old_tests:
+            return new_tests  # No old tests to merge
+        
+        # Calculate unchanged endpoints
+        all_endpoints = set(ep['path'] for ep in parsed_spec['endpoints'])
+        unchanged_endpoints = all_endpoints - self.changed_endpoints
+        
+        if not unchanged_endpoints:
+            return new_tests  # All endpoints changed, use only new tests
+        
+        print(f"   📝 Merging tests: keeping {len(unchanged_endpoints)} unchanged endpoint tests")
+        
+        # Extract tests for unchanged endpoints from old code
+        old_test_functions = self._extract_tests_for_endpoints(
+            old_tests['code'], 
+            unchanged_endpoints
+        )
+        
+        # Extract header (imports, fixtures) from new tests
+        header_pattern = r'^(.*?)(?=def test_)'
+        header_match = re.search(header_pattern, new_tests, re.DOTALL)
+        header = header_match.group(1) if header_match else ''
+        
+        # Extract new test functions
+        new_test_functions = self._extract_tests_for_endpoints(
+            new_tests,
+            self.changed_endpoints
+        )
+        
+        # Combine
+        merged_code = header + '\n'
+        
+        # Add old tests first (preserved)
+        for test in old_test_functions:
+            merged_code += test + '\n\n'
+        
+        # Add new tests
+        for test in new_test_functions:
+            merged_code += test + '\n\n'
+        
+        merged_count = len(old_test_functions) + len(new_test_functions)
+        print(f"   ✓ Merged {len(old_test_functions)} preserved + {len(new_test_functions)} regenerated = {merged_count} total tests")
+        
+        # Send regeneration event
+        send_event('test_regeneration', {
+            'preserved_count': len(old_test_functions),
+            'regenerated_count': len(new_test_functions),
+            'total_count': merged_count,
+            'changed_endpoints': list(self.changed_endpoints),
+            'unchanged_endpoints': list(unchanged_endpoints)
+        })
+        
+        return merged_code
+    
     def generate_tests(self, parsed_spec):
-        """Generate tests with real-time progress"""
+        """Generate tests with real-time progress and selective regeneration"""
         generator = TestGenerator()
         
         if not generator.check_ollama_status():
             raise Exception("AI model unavailable")
         
+        # Check if we should do selective regeneration
+        previous_tests = None
+        spec_to_generate = parsed_spec
+        
+        if self.spec_changes:
+            # Load previous tests
+            previous_tests = self._load_previous_tests()
+            
+            if previous_tests:
+                print(f"   📋 Spec changes detected - using selective regeneration")
+                print(f"   → Regenerating tests for {len(self.changed_endpoints)} changed endpoints")
+                print(f"   → Preserving tests for unchanged endpoints")
+                
+                # Filter spec to only changed endpoints
+                spec_to_generate = self._filter_spec_for_changed_endpoints(parsed_spec)
+            else:
+                print(f"   ℹ️  Spec changes detected but no previous tests found")
+        
         send_event('generate', {
             'progress': 10,
             'count': 0,
             'status': 'in_progress',
-            'message': 'Initializing AI model and analyzing API specification'
+            'message': 'Initializing AI model and analyzing API specification',
+            'selective': bool(previous_tests and self.spec_changes),
+            'endpoints_to_regenerate': len(self.changed_endpoints) if self.spec_changes else len(parsed_spec['endpoints'])
         })
         
         # Progress thread with engaging messages
@@ -371,6 +694,9 @@ class POCOrchestrator:
                 'Optimizing test cases for maximum code coverage',
                 'Finalizing test suite structure and fixtures'
             ]
+            if previous_tests and self.spec_changes:
+                msgs.insert(0, f'Selective regeneration: targeting {len(self.changed_endpoints)} changed endpoints')
+            
             idx = 0
             while not stop.is_set() and p < 85:
                 time.sleep(8)
@@ -388,9 +714,14 @@ class POCOrchestrator:
         t.start()
         
         try:
-            test_code = generator.generate_tests(parsed_spec)
+            # Generate tests for the filtered spec
+            test_code = generator.generate_tests(spec_to_generate)
             stop.set()
             t.join(timeout=1)
+            
+            # Merge with previous tests if doing selective regeneration
+            if previous_tests and self.spec_changes:
+                test_code = self._merge_tests(previous_tests, test_code, parsed_spec)
             
             # Count unique tests and send individual test events
             test_names = []
@@ -562,195 +893,6 @@ def client():
             suggestions.append("Run test individually for more details: pytest -v -k test_name")
         
         return suggestions
-    
-    def _can_auto_heal(self, reason):
-        """
-        Determines if error is auto-healable
-        
-        Args:
-            reason: Error message
-            
-        Returns:
-            Boolean indicating if healing can be attempted
-        """
-        # Can heal simple assertion errors and missing fields
-        healable_patterns = [
-            'assert',  # Any assertion error
-            'keyerror',
-            'missing'
-        ]
-        reason_lower = reason.lower()
-        return any(pattern in reason_lower for pattern in healable_patterns)
-    
-    def _attempt_healing(self, test_name, reason):
-        """
-        Attempts to generate healed assertion
-        
-        Args:
-            test_name: Name of failing test
-            reason: Failure reason
-            
-        Returns:
-            Dict with healing info or None
-        """
-        import re
-        from datetime import datetime
-        
-        # Extract status code assertion failures
-        status_code_pattern = r'assert (\d{3}) == (\d{3})'
-        match = re.search(status_code_pattern, reason)
-        
-        if match:
-            actual_code = match.group(1)
-            expected_code = match.group(2)
-            
-            # Determine the reason for the change
-            if actual_code == '401':
-                change_reason = f"API now requires authentication"
-            elif actual_code == '403':
-                change_reason = f"Access forbidden"
-            elif actual_code == '400':
-                change_reason = f"Bad request validation"
-            elif actual_code == '201':
-                change_reason = f"Resource created successfully"
-            elif actual_code == '404':
-                change_reason = f"Resource not found"
-            elif actual_code == '500':
-                change_reason = f"Server error"
-            else:
-                change_reason = f"Status code changed from {expected_code} to {actual_code}"
-            
-            return {
-                'original_assertion': f"assert response.status_code == {expected_code}",
-                'healed_assertion': f"assert response.status_code == {actual_code}",
-                'reason': change_reason,
-                'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                'actual_code': actual_code,
-                'expected_code': expected_code
-            }
-        
-        # Handle KeyError
-        if 'keyerror' in reason.lower():
-            field_match = re.search(r"KeyError: '(\w+)'", reason, re.IGNORECASE)
-            if field_match:
-                missing_field = field_match.group(1)
-                return {
-                    'original_assertion': f"data['{missing_field}']",
-                    'healed_assertion': f"assert '{missing_field}' in data",
-                    'reason': f"Field '{missing_field}' no longer in response",
-                    'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                }
-        
-        return None
-    
-    def _apply_healing_to_file(self, test_file, test_name, reason, healing_info):
-        """
-        Apply healing to actual test file
-        
-        Returns:
-            bool: True if successfully applied
-        """
-        import re
-        
-        try:
-            # Read test file
-            with open(test_file, 'r') as f:
-                content = f.read()
-            
-            # Find the test function
-            test_pattern = rf'(def {test_name}\([^)]+\):.*?)(?=\ndef |\Z)'
-            match = re.search(test_pattern, content, re.DOTALL)
-            
-            if not match:
-                return False
-            
-            original_function = match.group(0)
-            
-            # Replace the assertion
-            if healing_info['original_assertion'] in original_function:
-                # Calculate confidence
-                confidence = self._calculate_confidence(reason)
-                
-                # Build healing comment
-                healing_comment = f"""
-    # 🔧 AUTO-HEALED on {healing_info['timestamp']}
-    # Original: {healing_info['original_assertion']}
-    # Reason: {healing_info['reason']}
-    # Confidence: {confidence:.0%}"""
-                
-                # Replace assertion
-                healed_function = original_function.replace(
-                    healing_info['original_assertion'],
-                    healing_comment + '\n    ' + healing_info['healed_assertion'] + '  # ✅ HEALED'
-                )
-                
-                # Update content
-                new_content = content.replace(original_function, healed_function)
-                
-                # Write back
-                with open(test_file, 'w') as f:
-                    f.write(new_content)
-                
-                return True
-        except Exception as e:
-            print(f"   ⚠️  Healing file write error: {e}")
-        
-        return False
-    
-    def _calculate_confidence(self, reason):
-        """
-        Calculates confidence score for healing
-        
-        Args:
-            reason: Error message
-            
-        Returns:
-            Confidence score between 0.0 and 1.0
-        """
-        import re
-        
-        # Extract status codes from assertion error
-        status_code_pattern = r'assert (\d{3}) == (\d{3})'
-        match = re.search(status_code_pattern, reason)
-        
-        if match:
-            actual = int(match.group(1))
-            expected = int(match.group(2))
-            
-            # Very high confidence: Simple status code changes
-            if actual in [200, 201, 204]:  # Success codes
-                if expected in [200, 201, 204]:
-                    return 0.95  # Success to success (e.g., 200→201)
-                else:
-                    return 0.85  # Error to success
-            
-            # High confidence: Error code changes
-            elif actual in [400, 401, 403, 404]:  # Client errors
-                if expected in [400, 401, 403, 404]:
-                    return 0.90  # Client error to client error
-                elif expected in [200, 201]:
-                    return 0.88  # Success to client error (API behavior change)
-                else:
-                    return 0.80
-            
-            # Medium confidence: Server errors
-            elif actual in [500, 502, 503]:
-                return 0.65  # Server errors are less predictable
-            
-            # Default for status code assertions
-            return 0.75
-        
-        # KeyError fixes have medium-high confidence
-        elif 'keyerror' in reason.lower():
-            return 0.70
-        
-        # Generic assertion failures
-        elif 'assert' in reason.lower():
-            return 0.60  # Lower confidence for unknown assertions
-        
-        # Very low confidence for other errors
-        else:
-            return 0.50
     
     def _detect_anomalies(self, test_details, pytest_result):
         """
@@ -966,85 +1108,8 @@ def client():
                             root_cause=root_cause,
                             suggestions=suggestions
                         )
-                        
-                        # Attempt self-healing for certain error types
-                        if self._can_auto_heal(reason):
-                            healing_info = self._attempt_healing(name, reason)
-                            if healing_info:
-                                confidence = self._calculate_confidence(reason)
-                                
-                                # Apply healing to file
-                                healed = self._apply_healing_to_file(self.test_file_path, name, reason, healing_info)
-                                
-                                send_healing_event(
-                                    test_name=name,
-                                    confidence=confidence,
-                                    old_code=healing_info['original_assertion'],
-                                    new_code=healing_info['healed_assertion']
-                                )
-                                
-                                if healed:
-                                    print(f"   🔧 Auto-healed {name} (confidence: {confidence:.0%})")
-                                    self.healed_tests.append(name)
             
             print(f"\n   Results: {self.passed_tests}/{self.unique_test_count} passed")
-            
-            # Re-run tests if any were healed
-            if self.healed_tests:
-                print(f"\n🔁 Re-running tests after healing {len(self.healed_tests)} test(s)...")
-                
-                # Store before-healing results
-                before_passed = self.passed_tests
-                before_failed = self.failed_tests
-                
-                # Reset counters for re-run
-                self.passed_tests = 0
-                self.failed_tests = 0
-                
-                # Re-run pytest
-                result_after = self._execute_pytest(self.test_file_path)
-                
-                # Parse re-run results
-                details_after = []
-                lines = result_after.stdout.split('\n')
-                for i, line in enumerate(lines):
-                    # Only process test result lines (with PASSED or FAILED status)
-                    if '::test_' in line and (' PASSED' in line or ' FAILED' in line):
-                        name = line.split('::')[1].split()[0] if '::' in line else 'unknown'
-                        
-                        if ' PASSED' in line:
-                            self.passed_tests += 1
-                            details_after.append({'name': name, 'passed': True})
-                        elif ' FAILED' in line:
-                            self.failed_tests += 1
-                            reason = "Still failing after healing"
-                            for j in range(i+1, min(len(lines), i+50)):
-                                if '.py:' in lines[j] and 'assert' in lines[j]:
-                                    try:
-                                        reason = lines[j].split('assert')[1].strip()[:120]
-                                    except:
-                                        pass
-                                    break
-                            details_after.append({'name': name, 'passed': False, 'reason': reason})
-                
-                # Calculate healing effectiveness
-                tests_fixed = self.passed_tests - before_passed
-                
-                print(f"\n📊 Healing Summary:")
-                print(f"   Before: {before_passed} passed, {before_failed} failed")
-                print(f"   After:  {self.passed_tests} passed, {self.failed_tests} failed")
-                print(f"   Fixed:  {tests_fixed} test(s) healed successfully")
-                
-                # Send healing summary event
-                send_event('healing_summary', {
-                    'healed_count': len(self.healed_tests),
-                    'before_passed': before_passed,
-                    'before_failed': before_failed,
-                    'after_passed': self.passed_tests,
-                    'after_failed': self.failed_tests,
-                    'tests_fixed': tests_fixed,
-                    'effectiveness': (tests_fixed / len(self.healed_tests) * 100) if self.healed_tests else 0
-                })
             
             # Detect anomalies in test execution
             self._detect_anomalies(details, result)
