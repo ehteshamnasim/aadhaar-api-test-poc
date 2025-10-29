@@ -1194,7 +1194,8 @@ function handleTestRegenerationEvent(data) {
         regenerated_count,
         total_count,
         changed_endpoints,
-        unchanged_endpoints
+        unchanged_endpoints,
+        spec_changes
     } = data;
     
     // Create regeneration banner in the Test Regeneration tab
@@ -1274,6 +1275,72 @@ function handleTestRegenerationEvent(data) {
         const preservedPercent = preserved_count > 0 ? Math.round((preserved_count / total_count) * 100) : 0;
         document.getElementById('success-rate').textContent = preservedPercent + '%';
         document.getElementById('avg-confidence').textContent = regenerated_count;
+    }
+    
+    // Update Overview tab to show selective regeneration breakdown
+    const testsLabel = document.getElementById('tests-label');
+    const testsGenerated = document.getElementById('tests-generated');
+    const selectiveBreakdown = document.getElementById('selective-breakdown');
+    const preservedCountEl = document.getElementById('preserved-count');
+    const regeneratedCountEl = document.getElementById('regenerated-count');
+    
+    if (testsLabel && testsGenerated && selectiveBreakdown) {
+        testsLabel.textContent = 'Total Tests';
+        testsGenerated.textContent = total_count;
+        selectiveBreakdown.style.display = 'block';
+        preservedCountEl.textContent = `${preserved_count} preserved`;
+        regeneratedCountEl.textContent = `${regenerated_count} regenerated`;
+    }
+    
+    // Display spec changes in "Spec Changes & Test Impact" section
+    if (spec_changes && spec_changes.length > 0) {
+        const codeDiff = document.getElementById('code-diff');
+        if (codeDiff) {
+            // Remove empty state
+            const emptyState = codeDiff.querySelector('.empty-state');
+            if (emptyState) emptyState.remove();
+            
+            // Clear previous content
+            codeDiff.innerHTML = '';
+            
+            // Display each change
+            spec_changes.forEach((change, index) => {
+                const changeDiv = document.createElement('div');
+                changeDiv.style.cssText = `
+                    background: #f8f9fa;
+                    border-left: 4px solid ${change.breaking ? '#dc3545' : '#28a745'};
+                    padding: 15px;
+                    margin-bottom: 12px;
+                    border-radius: 4px;
+                `;
+                
+                const changeType = change.type.replace(/_/g, ' ').toUpperCase();
+                const breakingBadge = change.breaking ? 
+                    '<span style="background: #dc3545; color: white; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin-left: 8px;">BREAKING</span>' : '';
+                
+                changeDiv.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+                        <div>
+                            <strong style="color: #333;">${changeType}</strong>
+                            ${breakingBadge}
+                        </div>
+                        <code style="background: #e9ecef; padding: 2px 8px; border-radius: 3px; font-size: 12px;">
+                            ${change.method || ''} ${change.path || ''}
+                        </code>
+                    </div>
+                    <div style="color: #666; font-size: 14px; margin-bottom: 8px;">
+                        ${change.description}
+                    </div>
+                    ${change.recommendation ? `
+                        <div style="background: #fff3cd; padding: 10px; border-radius: 4px; font-size: 13px; margin-top: 8px;">
+                            <strong>💡 Recommendation:</strong> ${change.recommendation}
+                        </div>
+                    ` : ''}
+                `;
+                
+                codeDiff.appendChild(changeDiv);
+            });
+        }
     }
     
     // Log the regeneration

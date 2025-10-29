@@ -69,6 +69,19 @@ paths:
                     example: "unauthorized"
                   error:
                     type: string
+                    example: "Missing authentication token"
+        '403':
+          description: Forbidden - Invalid captcha
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "forbidden"
+                  error:
+                    type: string
                     example: "Authentication required"
         '429':
           description: Too many requests
@@ -86,16 +99,7 @@ paths:
                   retry_after:
                     type: integer
                     example: 60
-        '503':
-          description: Service temporarily unavailable
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-                    example: "Service is down for maintenance"
+
 
   /aadhaar/test-new-endpoint:
     get:
@@ -450,6 +454,12 @@ paths:
                 $ref: '#/components/schemas/Error'
         '502':
           description: Bad gateway
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '504':
+          description: Gateway timeout
           content:
             application/json:
               schema:

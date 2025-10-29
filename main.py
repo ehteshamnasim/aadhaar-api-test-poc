@@ -662,7 +662,8 @@ class POCOrchestrator:
             'regenerated_count': len(new_test_functions),
             'total_count': merged_count,
             'changed_endpoints': list(self.changed_endpoints),
-            'unchanged_endpoints': list(unchanged_endpoints)
+            'unchanged_endpoints': list(unchanged_endpoints),
+            'spec_changes': self.spec_changes  # Include detailed spec changes
         })
         
         return merged_code
