@@ -55,3 +55,6 @@ nohup.out
 # Coverage
 coverage.xml
 .coverage.*
+# Spec baseline tracking files (organized in specs/.versions/)
+specs/.versions/
+.spec_version_*

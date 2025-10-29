@@ -83,22 +83,7 @@ paths:
                   error:
                     type: string
                     example: "Authentication required"
-        '429':
-          description: Too many requests
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: "rate_limited"
-                  error:
-                    type: string
-                    example: "Too many verification attempts"
-                  retry_after:
-                    type: integer
-                    example: 60
+
 
 
   /aadhaar/test-new-endpoint:

@@ -1271,10 +1271,21 @@ function handleTestRegenerationEvent(data) {
         healingList.insertBefore(banner, healingList.firstChild);
         
         // Update stats in Test Regeneration tab
-        document.getElementById('total-healings').textContent = changed_endpoints ? changed_endpoints.length : 0;
+        const totalHealings = document.getElementById('total-healings');
+        const successRate = document.getElementById('success-rate');
+        const avgConfidence = document.getElementById('avg-confidence');
+        
+        console.log('Updating Test Regeneration stats:', {
+            totalHealings: totalHealings,
+            changed_endpoints_length: changed_endpoints ? changed_endpoints.length : 0,
+            preserved_count: preserved_count,
+            regenerated_count: regenerated_count
+        });
+        
+        if (totalHealings) totalHealings.textContent = changed_endpoints ? changed_endpoints.length : 0;
         const preservedPercent = preserved_count > 0 ? Math.round((preserved_count / total_count) * 100) : 0;
-        document.getElementById('success-rate').textContent = preservedPercent + '%';
-        document.getElementById('avg-confidence').textContent = regenerated_count;
+        if (successRate) successRate.textContent = preservedPercent + '%';
+        if (avgConfidence) avgConfidence.textContent = regenerated_count;
     }
     
     // Update Overview tab to show selective regeneration breakdown

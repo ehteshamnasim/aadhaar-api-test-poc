@@ -123,9 +123,13 @@ class POCOrchestrator:
         Each spec file has its own version tracking
         """
         try:
+            # Create tracking directory for spec versions
+            tracking_dir = os.path.join('specs', '.versions')
+            os.makedirs(tracking_dir, exist_ok=True)
+            
             # Create spec-specific version file based on spec filename
             spec_basename = os.path.basename(self.spec_path).replace('.yaml', '').replace('.yml', '')
-            version_file = f'.spec_version_{spec_basename}'
+            version_file = os.path.join(tracking_dir, f'{spec_basename}.baseline')
             
             # Read current spec
             with open(self.spec_path, 'r') as f:
@@ -322,7 +326,7 @@ class POCOrchestrator:
                 'status_code': code,
                 'description': f'{method} {path}: Response code {code} removed',
                 'breaking': True,
-                'recommendation': f'Remove test assertions for {code} response'
+                'recommendation': f'Tests will be regenerated automatically without {code} response assertions'
             })
         
         # Check request body changes
@@ -534,6 +538,11 @@ class POCOrchestrator:
         """
         Load tests from the most recent previous version
         
+        File Organization:
+        - Current test: tests/test_aadhaar_api_v{N}.py (active, being generated)
+        - Previous test: tests/test_aadhaar_api_v{N-1}.py (source of preserved tests)
+        - Older versions: tests/test_aadhaar_api_v*.py (historical versions)
+        
         Returns:
             Dict with test code and metadata, or None
         """
@@ -646,12 +655,34 @@ class POCOrchestrator:
         merged_code = header + '\n'
         
         # Add old tests first (preserved)
-        for test in old_test_functions:
-            merged_code += test + '\n\n'
+        if old_test_functions:
+            merged_code += '\n# ========================================\n'
+            merged_code += f'# PRESERVED TESTS ({len(old_test_functions)} tests from previous version)\n'
+            merged_code += '# These tests passed and their endpoints were unchanged\n'
+            merged_code += '# ========================================\n\n'
+            
+            print(f"   DEBUG: Adding {len(old_test_functions)} preserved tests with comments")
+            
+            for test in old_test_functions:
+                # Add inline comment before each preserved test
+                test_lines = test.split('\n')
+                if test_lines and test_lines[0].startswith('def test_'):
+                    merged_code += f'# ✓ PRESERVED - Endpoint unchanged\n'
+                merged_code += test + '\n\n'
         
         # Add new tests
-        for test in new_test_functions:
-            merged_code += test + '\n\n'
+        if new_test_functions:
+            merged_code += '\n# ========================================\n'
+            merged_code += f'# REGENERATED TESTS ({len(new_test_functions)} tests for changed endpoints)\n'
+            merged_code += '# These tests were regenerated due to API spec changes\n'
+            merged_code += '# ========================================\n\n'
+            
+            for test in new_test_functions:
+                # Add inline comment before each regenerated test
+                test_lines = test.split('\n')
+                if test_lines and test_lines[0].startswith('def test_'):
+                    merged_code += f'# 🔄 REGENERATED - Endpoint modified\n'
+                merged_code += test + '\n\n'
         
         merged_count = len(old_test_functions) + len(new_test_functions)
         print(f"   ✓ Merged {len(old_test_functions)} preserved + {len(new_test_functions)} regenerated = {merged_count} total tests")
@@ -795,6 +826,17 @@ class POCOrchestrator:
         """Save file"""
         filename = 'test_aadhaar_api.py' if self.version == 1 else f'test_aadhaar_api_v{self.version}.py'
         self.test_file_path = os.path.join(self.output_dir, filename)
+        
+        # Check if this is merged code with comments (selective regeneration)
+        if '# PRESERVED TESTS' in test_code or '# REGENERATED TESTS' in test_code:
+            print("   ✓ Saving merged test file with preservation comments")
+            with open(self.test_file_path, 'w') as f:
+                f.write(test_code)
+            # Extract test count from merged code
+            test_count = test_code.count('def test_')
+            self.unique_test_count = test_count
+            print(f"   ✓ Test suite prepared: {filename}")
+            return
         
         # Deduplicate and convert to Flask test client format
         test_functions = {}
