@@ -245,109 +245,195 @@ def coverage_report():
         # Inject custom CSS to override the default styling
         custom_css = """
         <style>
-            /* Override default coverage.py styles */
+            /* Clean monochrome styling */
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            
             body {
-                background: #f9fafb !important;
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+                background: #ffffff !important;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
                 margin: 0 !important;
-                padding: 20px !important;
+                padding: 0 !important;
+                line-height: 1.6 !important;
             }
             
-            #header {
-                background: white !important;
-                border-bottom: 2px solid #e5e7eb !important;
-                padding: 20px 30px !important;
-                margin: 0 0 20px 0 !important;
-                border-radius: 8px 8px 0 0 !important;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
-            }
-            
-            #index {
-                background: white !important;
-                padding: 30px !important;
-                border-radius: 8px !important;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+            /* Container wrapper */
+            #header, #index, #footer {
                 max-width: 1400px !important;
                 margin: 0 auto !important;
+                padding: 24px 40px !important;
             }
             
-            h1 {
-                color: #111827 !important;
-                font-size: 24px !important;
-                font-weight: 600 !important;
-                margin: 0 0 8px 0 !important;
+            /* Header section */
+            #header {
+                background: #000000 !important;
+                color: #ffffff !important;
+                padding: 32px 40px !important;
+                border-bottom: 3px solid #000000 !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: space-between !important;
             }
             
-            #footer {
-                background: transparent !important;
-                text-align: center !important;
-                padding: 20px !important;
-                color: #6b7280 !important;
+            #header h1 {
+                color: #ffffff !important;
+                font-size: 28px !important;
+                font-weight: 700 !important;
+                letter-spacing: -0.5px !important;
+                margin: 0 !important;
             }
             
+            #header p {
+                color: #e5e5e5 !important;
+                font-size: 14px !important;
+                margin: 4px 0 0 0 !important;
+            }
+            
+            /* Main content area */
+            #index {
+                background: #ffffff !important;
+                padding: 40px !important;
+            }
+            
+            /* Summary stats section */
+            #header .text {
+                flex: 1;
+            }
+            
+            /* Table styling */
             table {
                 width: 100% !important;
-                border-collapse: collapse !important;
+                border-collapse: separate !important;
+                border-spacing: 0 !important;
+                margin-top: 32px !important;
+                border: 1px solid #e0e0e0 !important;
+                border-radius: 8px !important;
+                overflow: hidden !important;
+            }
+            
+            thead {
+                background: #000000 !important;
             }
             
             thead tr {
-                background: #f3f4f6 !important;
-                border-bottom: 2px solid #e5e7eb !important;
+                background: #000000 !important;
             }
             
             th {
-                padding: 12px !important;
+                background: #000000 !important;
+                color: #ffffff !important;
+                padding: 16px 20px !important;
                 text-align: left !important;
                 font-weight: 600 !important;
-                color: #374151 !important;
-                font-size: 13px !important;
+                font-size: 14px !important;
+                text-transform: uppercase !important;
+                letter-spacing: 0.5px !important;
+                border: none !important;
             }
             
-            td {
-                padding: 12px !important;
-                border-bottom: 1px solid #f3f4f6 !important;
-                color: #1f2937 !important;
+            tbody tr {
+                border-bottom: 1px solid #f0f0f0 !important;
+                transition: background 0.15s ease !important;
+            }
+            
+            tbody tr:nth-child(even) {
+                background: #fafafa !important;
             }
             
             tbody tr:hover {
-                background: #f9fafb !important;
+                background: #f5f5f5 !important;
             }
             
+            tbody tr:last-child {
+                border-bottom: none !important;
+            }
+            
+            td {
+                padding: 16px 20px !important;
+                color: #1a1a1a !important;
+                font-size: 14px !important;
+                border: none !important;
+                vertical-align: middle !important;
+            }
+            
+            /* File name column */
+            td:first-child {
+                font-weight: 500 !important;
+            }
+            
+            /* Coverage percentage styling */
             .pc_cov {
-                font-weight: 600 !important;
+                font-weight: 700 !important;
+                font-size: 15px !important;
+                display: inline-block !important;
+                min-width: 50px !important;
+                text-align: right !important;
             }
             
-            /* Coverage percentage colors */
-            .pc_cov[data-ratio*="100"] {
-                color: #059669 !important;
-            }
-            
+            /* Links */
             a {
-                color: #2563eb !important;
+                color: #000000 !important;
                 text-decoration: none !important;
+                transition: opacity 0.15s ease !important;
             }
             
             a:hover {
+                opacity: 0.7 !important;
                 text-decoration: underline !important;
             }
             
             /* Back button */
             .back-button {
-                display: inline-block;
-                background: #f44d30;
-                color: white;
-                padding: 10px 20px;
-                border-radius: 6px;
-                text-decoration: none;
-                font-weight: 600;
-                margin-bottom: 20px;
-                transition: all 0.2s;
+                display: inline-flex !important;
+                align-items: center !important;
+                gap: 8px !important;
+                background: #ffffff !important;
+                color: #000000 !important;
+                padding: 10px 20px !important;
+                border: 2px solid #000000 !important;
+                border-radius: 6px !important;
+                text-decoration: none !important;
+                font-weight: 600 !important;
+                font-size: 14px !important;
+                transition: all 0.2s ease !important;
             }
             
             .back-button:hover {
-                background: #e03e22;
-                transform: translateY(-1px);
-                box-shadow: 0 4px 8px rgba(244, 77, 48, 0.3);
+                background: #000000 !important;
+                color: #ffffff !important;
+                opacity: 1 !important;
+                text-decoration: none !important;
+                transform: translateX(-4px) !important;
+            }
+            
+            /* Footer */
+            #footer {
+                background: #fafafa !important;
+                text-align: center !important;
+                padding: 24px !important;
+                color: #666666 !important;
+                font-size: 13px !important;
+                border-top: 1px solid #e0e0e0 !important;
+                margin-top: 40px !important;
+            }
+            
+            /* Number formatting */
+            .num {
+                font-variant-numeric: tabular-nums !important;
+                font-family: 'SF Mono', 'Monaco', 'Consolas', monospace !important;
+            }
+            
+            /* Status badges */
+            #header .text p {
+                display: inline-block !important;
+                background: rgba(255, 255, 255, 0.15) !important;
+                padding: 6px 12px !important;
+                border-radius: 4px !important;
+                margin-right: 12px !important;
+                font-weight: 500 !important;
             }
         </style>
         """
