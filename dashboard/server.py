@@ -228,6 +228,148 @@ def view_tests():
     except Exception as e:
         return f"<html><body style='font-family: Arial; padding: 40px;'><h1>Error loading test file</h1><p>{str(e)}</p><a href='/'>Back to Dashboard</a></body></html>", 500
 
+@app.route('/coverage-report')
+def coverage_report():
+    """Serve improved coverage HTML report"""
+    try:
+        project_root = os.path.dirname(os.path.dirname(__file__))
+        coverage_index = os.path.join(project_root, 'htmlcov', 'index.html')
+        
+        if not os.path.exists(coverage_index):
+            return "<html><body style='font-family: Arial; padding: 40px; text-align: center;'><h1>Coverage Report Not Generated Yet</h1><p>Run tests first to generate coverage report.</p><a href='/'>Back to Dashboard</a></body></html>", 404
+        
+        # Read the original coverage HTML
+        with open(coverage_index, 'r') as f:
+            original_html = f.read()
+        
+        # Inject custom CSS to override the default styling
+        custom_css = """
+        <style>
+            /* Override default coverage.py styles */
+            body {
+                background: #f9fafb !important;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+                margin: 0 !important;
+                padding: 20px !important;
+            }
+            
+            #header {
+                background: white !important;
+                border-bottom: 2px solid #e5e7eb !important;
+                padding: 20px 30px !important;
+                margin: 0 0 20px 0 !important;
+                border-radius: 8px 8px 0 0 !important;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+            }
+            
+            #index {
+                background: white !important;
+                padding: 30px !important;
+                border-radius: 8px !important;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+                max-width: 1400px !important;
+                margin: 0 auto !important;
+            }
+            
+            h1 {
+                color: #111827 !important;
+                font-size: 24px !important;
+                font-weight: 600 !important;
+                margin: 0 0 8px 0 !important;
+            }
+            
+            #footer {
+                background: transparent !important;
+                text-align: center !important;
+                padding: 20px !important;
+                color: #6b7280 !important;
+            }
+            
+            table {
+                width: 100% !important;
+                border-collapse: collapse !important;
+            }
+            
+            thead tr {
+                background: #f3f4f6 !important;
+                border-bottom: 2px solid #e5e7eb !important;
+            }
+            
+            th {
+                padding: 12px !important;
+                text-align: left !important;
+                font-weight: 600 !important;
+                color: #374151 !important;
+                font-size: 13px !important;
+            }
+            
+            td {
+                padding: 12px !important;
+                border-bottom: 1px solid #f3f4f6 !important;
+                color: #1f2937 !important;
+            }
+            
+            tbody tr:hover {
+                background: #f9fafb !important;
+            }
+            
+            .pc_cov {
+                font-weight: 600 !important;
+            }
+            
+            /* Coverage percentage colors */
+            .pc_cov[data-ratio*="100"] {
+                color: #059669 !important;
+            }
+            
+            a {
+                color: #2563eb !important;
+                text-decoration: none !important;
+            }
+            
+            a:hover {
+                text-decoration: underline !important;
+            }
+            
+            /* Back button */
+            .back-button {
+                display: inline-block;
+                background: #f44d30;
+                color: white;
+                padding: 10px 20px;
+                border-radius: 6px;
+                text-decoration: none;
+                font-weight: 600;
+                margin-bottom: 20px;
+                transition: all 0.2s;
+            }
+            
+            .back-button:hover {
+                background: #e03e22;
+                transform: translateY(-1px);
+                box-shadow: 0 4px 8px rgba(244, 77, 48, 0.3);
+            }
+        </style>
+        """
+        
+        # Add back button
+        back_button = '<a href="/" class="back-button">← Back to Dashboard</a>'
+        
+        # Inject custom CSS before </head> and back button after <body>
+        modified_html = original_html.replace('</head>', custom_css + '</head>')
+        modified_html = modified_html.replace('<body>', '<body>' + back_button, 1)
+        
+        return modified_html, 200
+        
+    except Exception as e:
+        return f"<html><body style='font-family: Arial; padding: 40px;'><h1>Error Loading Coverage</h1><p>{str(e)}</p><a href='/'>Back to Dashboard</a></body></html>", 500
+
+@app.route('/htmlcov/<path:filename>')
+def coverage_files(filename):
+    """Serve coverage report static files"""
+    project_root = os.path.dirname(os.path.dirname(__file__))
+    return send_from_directory(os.path.join(project_root, 'htmlcov'), filename)
+
 @app.route('/events')
 def stream():
     """Server-Sent Events stream"""
@@ -326,274 +468,6 @@ def debug_events():
         'test_regeneration_events': regeneration_events,
         'last_20_events': events_copy[-20:] if events_copy else []
     }, 200
-
-@app.route('/coverage-report')
-def coverage_report():
-    """Serve coverage report with modern dashboard styling"""
-    try:
-        htmlcov_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'htmlcov')
-        index_path = os.path.join(htmlcov_path, 'index.html')
-        
-        if os.path.exists(index_path):
-            # Read original coverage HTML
-            with open(index_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-            
-            # Inject modern dashboard-matching CSS
-            custom_css = """
-            <style>
-            /* Reset and modern styles */
-            * { box-sizing: border-box; }
-            body { 
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-                margin: 0 !important;
-                padding: 20px !important;
-            }
-            
-            /* Main container */
-            #header, #contents, #index {
-                max-width: 1200px;
-                margin: 0 auto 20px auto !important;
-                background: white !important;
-                border-radius: 10px !important;
-                padding: 30px !important;
-                box-shadow: 0 4px 6px rgba(0,0,0,0.1) !important;
-            }
-            
-            /* Header section */
-            #header {
-                background: white !important;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                border-bottom: 2px solid #667eea !important;
-            }
-            
-            #header h1 { 
-                color: #667eea !important;
-                margin: 0 !important;
-                font-size: 2rem !important;
-                font-weight: 600 !important;
-            }
-            
-            #header .back-link {
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white !important;
-                padding: 10px 20px;
-                border-radius: 6px;
-                text-decoration: none !important;
-                font-weight: 600;
-                display: inline-block;
-            }
-            
-            #header .back-link:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 4px 8px rgba(102, 126, 234, 0.4);
-            }
-            
-            /* Table styling */
-            table { 
-                width: 100% !important;
-                border-collapse: collapse !important;
-                margin-top: 20px !important;
-            }
-            
-            table thead tr {
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-            }
-            
-            table th { 
-                background: transparent !important;
-                color: white !important;
-                padding: 12px !important;
-                font-weight: 600 !important;
-                text-align: left !important;
-            }
-            
-            table td { 
-                padding: 12px !important;
-                border-bottom: 1px solid #e0e0e0 !important;
-            }
-            
-            table tr:hover {
-                background: #f5f5f5 !important;
-            }
-            
-            /* Coverage percentage */
-            .pc_cov { 
-                font-weight: bold !important;
-                padding: 4px 8px !important;
-                border-radius: 4px !important;
-            }
-            
-            /* Color coding for coverage */
-            .pc_cov[style*="rgb(0, 255, 0)"],
-            .pc_cov[style*="background: #00ff00"] {
-                background: #4caf50 !important;
-                color: white !important;
-            }
-            
-            .pc_cov[style*="rgb(255, 255, 0)"],
-            .pc_cov[style*="background: #ffff00"] {
-                background: #ff9800 !important;
-                color: white !important;
-            }
-            
-            .pc_cov[style*="rgb(255, 0, 0)"],
-            .pc_cov[style*="background: #ff0000"] {
-                background: #f44336 !important;
-                color: white !important;
-            }
-            
-            /* Links */
-            a { color: #667eea !important; text-decoration: none !important; }
-            a:hover { text-decoration: underline !important; }
-            
-            /* Buttons */
-            button, .button {
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white !important;
-                border: none !important;
-                padding: 8px 16px !important;
-                border-radius: 6px !important;
-                cursor: pointer !important;
-                font-weight: 600 !important;
-            }
-            
-            button:hover, .button:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 4px 8px rgba(102, 126, 234, 0.4);
-            }
-            </style>
-            """
-            
-            # Inject before </head>
-            if '</head>' in content:
-                content = content.replace('</head>', custom_css + '</head>')
-            
-            # Add back to dashboard link in header
-            if '<h1>' in content:
-                content = content.replace(
-                    '<h1>',
-                    '<h1 style="flex: 1;">'
-                )
-                # Add back button after h1
-                content = content.replace(
-                    '</h1>',
-                    '</h1><a href="/" class="back-link">Back to Dashboard</a>',
-                    1  # Only first occurrence
-                )
-            
-            response = app.response_class(
-                response=content,
-                status=200,
-                mimetype='text/html'
-            )
-            response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-            response.headers['Pragma'] = 'no-cache'
-            response.headers['Expires'] = '0'
-            
-            return response
-        else:
-            return """
-                <html>
-                <head>
-                    <style>
-                        body { 
-                            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                            margin: 0;
-                            padding: 40px;
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                            min-height: 100vh;
-                        }
-                        .container { 
-                            background: white;
-                            padding: 40px;
-                            border-radius: 10px;
-                            max-width: 600px;
-                            text-align: center;
-                            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-                        }
-                        h1 { color: #667eea; margin-top: 0; }
-                        a { 
-                            display: inline-block;
-                            margin-top: 20px;
-                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                            color: white;
-                            padding: 12px 24px;
-                            border-radius: 6px;
-                            text-decoration: none;
-                            font-weight: 600;
-                        }
-                        a:hover {
-                            transform: translateY(-2px);
-                            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.4);
-                        }
-                    </style>
-                </head>
-                <body>
-                    <div class="container">
-                        <h1>Coverage Report Not Generated Yet</h1>
-                        <p>Run POC first to generate coverage report</p>
-                        <a href="/">Back to Dashboard</a>
-                    </div>
-                </body>
-                </html>
-            """, 404
-    except Exception as e:
-        return f"""
-            <html>
-            <head>
-                <style>
-                    body {{
-                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                        margin: 0;
-                        padding: 40px;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        min-height: 100vh;
-                    }}
-                    .container {{
-                        background: white;
-                        padding: 40px;
-                        border-radius: 10px;
-                        max-width: 600px;
-                        text-align: center;
-                        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-                    }}
-                    h1 {{ color: #f44336; margin-top: 0; }}
-                    a {{
-                        display: inline-block;
-                        margin-top: 20px;
-                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                        color: white;
-                        padding: 12px 24px;
-                        border-radius: 6px;
-                        text-decoration: none;
-                        font-weight: 600;
-                    }}
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <h1>Error Loading Coverage Report</h1>
-                    <p>{str(e)}</p>
-                    <a href="/">Back to Dashboard</a>
-                </div>
-            </body>
-            </html>
-        """, 500
-
-@app.route('/coverage-report/<path:filename>')
-def coverage_files(filename):
-    """Serve coverage report static files"""
-    return send_from_directory('../htmlcov', filename)
 
 @app.route('/generated-tests')
 def generated_tests():
